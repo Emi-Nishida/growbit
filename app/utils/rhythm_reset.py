@@ -11,10 +11,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def get_system_prompt(character_name: str, character_profile: dict) -> str:
+def get_system_prompt(character_name: str, character_profile: dict, situation: str = None, season: str = None) -> str:
     """キャラクターに応じたシステムプロンプトを生成"""
+    
+    # シーンと季節の情報を追加
+    context_info = ""
+    if situation:
+        context_info += f"\n現在のシーン: {situation}"
+    if season:
+        context_info += f"\n現在の季節: {season}"
+    
     return f"""あなたは「{character_name}」という猫様のキャラクター。
 {character_profile['specialty']}として、人間の気持ちに寄り添い、短時間でできるリラックス法を提案します。
+{context_info}
 
 あなたの特徴:
 - 専門分野: {character_profile['rhythm_focus']}
@@ -32,6 +41,7 @@ def get_system_prompt(character_name: str, character_profile: dict) -> str:
 
 内容の方針:
 - あなたの専門分野を活かした提案
+- シーンと季節に合った内容にする（例: 朝イチなら目覚めサポート、会議前なら緊張ほぐし）
 - オフィスや自宅で気軽にできる
 - 道具不要
 
@@ -48,11 +58,14 @@ JSONスキーマ:
 - JSON以外は出さない
 - 3ステップ厳守、簡潔に
 - あなたのキャラクター性を活かす
+- シーンと季節を考慮する
 """
 
 USER_PROMPT_TEMPLATE = """入力:
 onomatopoeia="{onomatopoeia}"
-constraints="3ステップ/各20文字以内/道具不要"
+situation="{situation}"
+season="{season}"
+constraints="3ステップ/各20文字以内/道具不要/シーンと季節に合わせる"
 出力は上記JSONスキーマに完全準拠し、余計な文字を一切含めないこと。
 """
 
@@ -64,7 +77,13 @@ def _extract_json(text: str) -> str:
         return text[start:end+1]
     return text
 
-def generate_rhythm_reset(onomatopoeia: str, character_name: str, character_profile: dict) -> Optional[dict]:
+def generate_rhythm_reset(
+    onomatopoeia: str, 
+    character_name: str, 
+    character_profile: dict,
+    situation: str = None,
+    season: str = None
+) -> Optional[dict]:
     """
     OpenAI APIでリズム・リセットを生成
     
@@ -72,6 +91,8 @@ def generate_rhythm_reset(onomatopoeia: str, character_name: str, character_prof
         onomatopoeia: オノマトペ
         character_name: キャラクター名
         character_profile: キャラクタープロファイル
+        situation: シーン（オプション）
+        season: 季節（オプション）
     
     Returns:
         dict or None: リセット提案のJSON、失敗時はNone
@@ -84,8 +105,12 @@ def generate_rhythm_reset(onomatopoeia: str, character_name: str, character_prof
     try:
         client = OpenAI(api_key=api_key)
         
-        system_prompt = get_system_prompt(character_name, character_profile)
-        user_prompt = USER_PROMPT_TEMPLATE.format(onomatopoeia=onomatopoeia)
+        system_prompt = get_system_prompt(character_name, character_profile, situation, season)
+        user_prompt = USER_PROMPT_TEMPLATE.format(
+            onomatopoeia=onomatopoeia,
+            situation=situation or "その他",
+            season=season or "春"
+        )
         
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -105,7 +130,14 @@ def generate_rhythm_reset(onomatopoeia: str, character_name: str, character_prof
         print(f"OpenAI API Error: {e}")
         return None
 
-def get_rhythm_reset(onomatopoeia: str, character_name: str = None, character_profile: dict = None, use_ai: bool = True) -> dict:
+def get_rhythm_reset(
+    onomatopoeia: str, 
+    character_name: str = None, 
+    character_profile: dict = None, 
+    situation: str = None,
+    season: str = None,
+    use_ai: bool = True
+) -> dict:
     """
     オノマトペに応じたリズム・リセット提案を返す
     
@@ -113,6 +145,8 @@ def get_rhythm_reset(onomatopoeia: str, character_name: str = None, character_pr
         onomatopoeia: オノマトペ
         character_name: キャラクター名
         character_profile: キャラクタープロファイル
+        situation: シーン（オプション）
+        season: 季節（オプション）
         use_ai: OpenAI生成を使うか（デフォルトTrue）
     
     Returns:
@@ -121,7 +155,7 @@ def get_rhythm_reset(onomatopoeia: str, character_name: str = None, character_pr
     
     # AI生成を試みる
     if use_ai and character_name and character_profile:
-        result = generate_rhythm_reset(onomatopoeia, character_name, character_profile)
+        result = generate_rhythm_reset(onomatopoeia, character_name, character_profile, situation, season)
         if result:
             return result
     
