@@ -85,17 +85,38 @@ def get_month_start_date(today: Optional[date] = None) -> date:
         today = datetime.now().date()
     return date(today.year, today.month, 1)
 
+def get_current_season() -> str:
+    """現在の季節を取得"""
+    month = datetime.now().month
+    if month in [3, 4, 5]:
+        return "春"
+    elif month in [6, 7, 8]:
+        return "夏"
+    elif month in [9, 10, 11]:
+        return "秋"
+    else:
+        return "冬"
+
 # =========================
-# オノマトペ・猫マスタ取得
+# マスタデータ取得
 # =========================
 
 def get_all_onomatopoeia(supabase) -> List[Dict[str, Any]]:
-    """全オノマトペを取得（カテゴリ順）"""
+    """全オノマトペを取得"""
     try:
         response = supabase.table("onomatopoeia_master").select("*").order("id").execute()
         return response.data if response.data else []
     except Exception as e:
         st.error(f"❌ オノマトペ取得エラー: {e}")
+        return []
+
+def get_all_situations(supabase) -> List[Dict[str, Any]]:
+    """全シーンを取得"""
+    try:
+        response = supabase.table("situation_master").select("*").order("id").execute()
+        return response.data if response.data else []
+    except Exception as e:
+        st.error(f"❌ シーン取得エラー: {e}")
         return []
 
 def get_cat_by_onomatopoeia_id(supabase, onomatopoeia_id: int) -> Optional[Dict[str, Any]]:
@@ -163,6 +184,7 @@ def register_mood(
     cat_id: str,
     after_mood_id: int,
     points_earned: int,
+    situation_id: Optional[int] = None,
     comment: Optional[str] = None,
     character_name: Optional[str] = None,
     rhythm_content: Optional[Dict[str, Any]] = None,
@@ -178,6 +200,7 @@ def register_mood(
         cat_id: 猫ID
         after_mood_id: 提案後の気分ID
         points_earned: 獲得ポイント
+        situation_id: シーンID（オプション）
         comment: コメント（オプション）
         character_name: 選ばれたキャラクター名（オプション）
         rhythm_content: リズム・リセット生成内容（オプション）
@@ -193,6 +216,7 @@ def register_mood(
             "cat_id": cat_id,
             "after_mood_id": after_mood_id,
             "points_earned": points_earned,
+            "situation_id": situation_id,
             "comment": comment
         }
         
