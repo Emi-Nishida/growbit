@@ -189,7 +189,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     if st.button("🏠 ホームへ戻る", use_container_width=True, type="primary"):
-        # セッションクリア
+        # セッションクリア（ホームへ戻るため、これまでの記録をクリア）
         keys_to_clear = [
             "selected_onomatopoeia_id",
             "selected_onomatopoeia",
@@ -202,23 +202,15 @@ with col1:
         for key in keys_to_clear:
             if key in st.session_state:
                 del st.session_state[key]
-        
+
         st.switch_page("main.py")
 
 with col2:
-    if st.button("🔄 もう一度やる", use_container_width=True):
-        # セッションクリア
-        keys_to_clear = [
-            "selected_onomatopoeia_id",
-            "selected_onomatopoeia",
-            "selected_cat_id",
-            "selected_cat_name",
-            "selected_cat_trait",
-            "points_earned",
-            "after_mood_label",
-        ]
-        for key in keys_to_clear:
-            if key in st.session_state:
-                del st.session_state[key]
-        
-        st.switch_page("pages/1_select.py")
+    # ボタンのラベルを「📊 今月の振り返り」に変更
+    # ページのタイトルに合わせて「📊」の絵文字を使用
+    if st.button("📊 今月の振り返り", use_container_width=True):
+        # 「振り返り」への遷移のため、セッションクリアのロジックは削除
+        # 遷移先のページで必要なデータはセッションステートに残しておく
+
+        # 遷移先を pages/4_feedback.py に変更
+        st.switch_page("pages/4_feedback.py")

@@ -129,13 +129,13 @@ with col1:
     
     st.markdown("")
     
-    # タイマーボタン（10秒/30秒/60秒、10秒がデフォルト）
+    # タイマーボタン（10秒/30秒/60秒、デフォルトなし）
     st.markdown("**⏱️ タイマー：**")
     col_t1, col_t2, col_t3 = st.columns(3)
     
     timer_clicked = None
     with col_t1:
-        if st.button("10秒", key="timer_10", use_container_width=True, type="primary"):
+        if st.button("10秒", key="timer_10", use_container_width=True):
             timer_clicked = 10
     with col_t2:
         if st.button("30秒", key="timer_30", use_container_width=True):
@@ -255,7 +255,7 @@ for after_mood_id, config in AFTER_MOOD_CONFIG.items():
             "これ選ぶ", 
             key=f"after_mood_{after_mood_id}", 
             use_container_width=True,
-            type="primary" if after_mood_id == 3 else "secondary"
+            type="secondary" # ← 条件分岐を削除し、すべてをsecondary（灰色）に固定
         ):
             selected_after_mood_id = after_mood_id
 

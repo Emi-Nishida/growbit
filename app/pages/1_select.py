@@ -206,18 +206,17 @@ with col_pos:
 # 選択状態の表示 + CTAボタン
 # =========================
 
-if st.session_state.get("selected_onomatopoeia"):
-    st.markdown("---")
-    
-    selected_ono = st.session_state['selected_onomatopoeia']
-    selected_emoji = ONOMATOPOEIA_EMOJIS.get(selected_ono, "")
-    
-    st.info(f"🐱 対応する猫: {st.session_state.get('selected_cat_name', '不明')}")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # CTAボタン
-    _, center, _ = st.columns([1, 2, 1])
-    with center:
-        if st.button("😺 気分を登録して猫様に会う", type="primary", use_container_width=True, key="confirm_selection"):
+st.markdown("<br>", unsafe_allow_html=True) # スペースを調整
+
+# CTAボタン
+_, center, _ = st.columns([1, 2, 1])
+with center:
+    # 常にボタンを表示
+    if st.button("😺 気分を登録して猫様に会う", type="primary", use_container_width=True, key="confirm_selection"):
+        # 画面遷移の前に、オノマトペが選択されているか確認
+        if st.session_state.get("selected_onomatopoeia_id"):
             st.switch_page("pages/2_suggest.py")
+        else:
+            # 選択されていない場合はエラーメッセージを表示して処理を中断
+            st.error("🐾 まず、今の気分に近いオノマトペを選択してください。")
+            st.stop()

@@ -10,13 +10,14 @@ from utils.services import (
     get_weekly_balance,
     get_food_type_by_points,
     get_next_goal_message,
-    get_feed_id_by_points,
+    # get_feed_id_by_points, ← 削除済み
     get_feed_point_by_id,
     deduct_weekly_balance,
     execute_weekly_feeding_event,
     get_feeding_history,
     get_week_start_date,
     initialize_weekly_points_if_needed,
+    get_all_feeds,  # 新しく追加
 )
 from utils.constants import FOOD_EMOJIS, CAT_EXPRESSIONS, PAGE_CONFIG
 from utils.ui import inject_base_styles
@@ -43,15 +44,25 @@ week_points = get_current_week_points(supabase, user_id)
 # 餌やり可能残高（先週分）
 weekly_balance = get_weekly_balance(supabase, user_id)
 
-# 今週の餌(予定)
+# 全餌マスタを取得 (新規追加分)
+all_feeds = get_all_feeds(supabase) 
+# 0ポイントの「カリカリ」を除外し、残高内で買える餌をフィルタ
+affordable_feeds = [
+    f for f in all_feeds 
+    if f['feed_point'] <= weekly_balance and f['feed_point'] > 0
+]
+
+# 今週の餌(予定)の変数を再定義 (UIで利用するため復活)
 current_food_type = get_food_type_by_points(week_points)
 current_food_emoji = FOOD_EMOJIS.get(current_food_type, "🐱")
 current_cat_expression = CAT_EXPRESSIONS.get(current_food_type, "🐱")
 
-# 餌やり可能な餌（残高ベース）
-available_food_type = get_food_type_by_points(weekly_balance)
-available_food_emoji = FOOD_EMOJIS.get(available_food_type, "🐱")
-available_cat_expression = CAT_EXPRESSIONS.get(available_food_type, "🐱")
+# 以前使用していたが不要になった変数は削除/コメントアウト:
+# available_food_type, available_food_emoji, available_cat_expression は削除済みとして処理を継続
+# # 餌やり可能な餌（残高ベース）
+# available_food_type = get_food_type_by_points(weekly_balance)
+# available_food_emoji = FOOD_EMOJIS.get(available_food_type, "🐱")
+# available_cat_expression = CAT_EXPRESSIONS.get(available_food_type, "🐱")
 
 # 先週の日付範囲（表示用）
 today = datetime.now().date()
@@ -219,17 +230,23 @@ with col_left:
             )
 
 # ---------------------
-# 右側: 週次餌やりイベント
+# 右側: 週次餌やりイベント (【修正版】ユーザー選択式)
 # ---------------------
 with col_right:
     st.markdown("#### 🍽️ 週次餌やりイベント")
     st.caption(f"先週({last_week_range})貯めたポイントで、特別な餌をあげよう!")
-    
+
+    # 買える餌のリストが空かどうかをチェック
     if weekly_balance == 0:
         # 残高がない
         st.info("💡 餌やり可能なポイントがありません")
         st.caption("今週気分を登録してポイントを貯めましょう!")
     
+    elif not affordable_feeds:
+        # ポイントはあるが、買える餌がない（feed_pointが0pt超の餌が買えない場合）
+        st.info(f"💡 残高: {weekly_balance}pt。交換可能な餌がありません。")
+        st.caption("もう少しポイントを貯めて、より豪華な餌にチャレンジしましょう！")
+
     else:
         # 残高表示
         st.metric(
@@ -237,34 +254,55 @@ with col_right:
             value=f"{weekly_balance}pt"
         )
         
-        # 現在選べる餌
+        # 買える餌の選択肢リストを作成 (例: "ちゅ〜る (300pt)")
+        food_options = [
+            f"{f['feed_name']} ({f['feed_point']}pt)" 
+            for f in affordable_feeds
+        ]
+        
+        # ユーザーに選択させるUI
+        selected_option = st.selectbox(
+            "🎁 あげる餌を選んでください",
+            food_options,
+            key="feed_select"
+        )
+        
+        # 選択された名前から、元のデータ(辞書)を特定する
+        selected_feed_name = selected_option.split(" (")[0]
+        # next() を使ってリスト内から該当する餌データを取得
+        selected_feed = next(f for f in affordable_feeds if f['feed_name'] == selected_feed_name)
+        
+        selected_feed_emoji = FOOD_EMOJIS.get(selected_feed_name, "🐱")
+        selected_feed_cost = selected_feed['feed_point']
+        
+        # 選択中の餌の情報をUIで表示
         st.markdown(f"""
         <div style="
             text-align: center;
             padding: 20px;
-            background: #f9f9f9;
+            background: #f0f4ff;
             border-radius: 10px;
             border: 2px solid #667eea;
             margin: 10px 0;
         ">
-            <div style="font-size: 40px; margin-bottom: 5px;">{available_cat_expression} {available_food_emoji}</div>
+            <div style="font-size: 40px; margin-bottom: 5px;">{selected_feed_emoji}</div>
             <p style="font-size: 16px; margin: 0; color: #666;">
-                選べる餌<br>
-                <strong>{available_food_type}</strong>
+                選択中の餌: <strong>{selected_feed_name}</strong><br>
+                消費ポイント: <strong>{selected_feed_cost}pt</strong>
             </p>
         </div>
         """, unsafe_allow_html=True)
         
         # 餌やりボタン
         if st.button(
-            f"🍽️ {available_food_type}をあげる", 
+            f"🍽️ {selected_feed_name}をあげる（{selected_feed_cost}pt消費）", 
             key="weekly_feed_button", 
             type="primary", 
             use_container_width=True
         ):
-            # 餌IDを取得
-            feed_id = get_feed_id_by_points(supabase, weekly_balance)
-            feed_point = get_feed_point_by_id(supabase, feed_id)
+            # 餌IDと消費ポイントを取得
+            feed_id = selected_feed['id']
+            feed_point = selected_feed['feed_point']
             
             # 残高チェック＆減算
             if deduct_weekly_balance(supabase, user_id, feed_point):
@@ -272,12 +310,14 @@ with col_right:
                 success = execute_weekly_feeding_event(supabase, user_id, feed_id)
                 
                 if success:
+                    # 成功メッセージとリロード
                     new_balance = weekly_balance - feed_point
                     
-                    st.success(f"🎉 {available_food_type}をあげました!")
+                    st.success(f"🎉 {selected_feed_name}をあげました!")
                     st.balloons()
                     
                     # アニメーション表示
+                    selected_cat_expression = CAT_EXPRESSIONS.get(selected_feed_name, "🐱")
                     st.markdown(f"""
                     <div style="
                         text-align: center;
@@ -287,7 +327,7 @@ with col_right:
                         margin: 20px 0;
                         box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
                     ">
-                        <div style="font-size: 80px; margin-bottom: 15px;">{available_cat_expression}{available_cat_expression}{available_cat_expression}</div>
+                        <div style="font-size: 80px; margin-bottom: 15px;">{selected_cat_expression}{selected_cat_expression}{selected_cat_expression}</div>
                         <h2 style="color: white; margin: 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
                             猫様たち大喜び！
                         </h2>
@@ -301,6 +341,49 @@ with col_right:
                     # 2秒待ってからリロード
                     time.sleep(2)
                     st.rerun()
+
+                else:
+                    st.error("餌やりログの登録に失敗しました。")
+            else:
+                st.error("残高が足りません。選択した餌のポイントを確認してください。")
+# ---
+# 最近の餌やり履歴(週次イベント内)
+# ---
+
+# ★ 以下のブロックは、週次イベントの `else:` のスコープの外に配置してください。
+# これが `with col_right:` の最後のコンテンツになります。
+
+with st.expander("📅 最近の餌やり履歴", expanded=False):
+    # get_feeding_historyの修正（limit=3を追加）が必要です。
+    history = get_feeding_history(supabase, user_id, limit=3)
+    
+    if not history:
+        st.info("まだ餌やり履歴がありません")
+    else:
+        for record in history:
+            # 日付処理には datetime が必要です
+            feed_at = datetime.fromisoformat(record["feed_at"].replace("Z", "+00:00"))
+            feed_name = record.get("feed_master", {}).get("feed_name", "不明")
+            feed_point = record.get("feed_master", {}).get("feed_point", 0)
+            feed_emoji = FOOD_EMOJIS.get(feed_name, "🐱")
+            
+            # 日付フォーマット
+            date_str = feed_at.strftime("%m/%d(%a)")
+            
+            st.markdown(f"""
+            <div style="
+                padding: 12px;
+                margin: 8px 0;
+                background: #f9f9f9;
+                border-left: 4px solid #667eea;
+                border-radius: 5px;
+            ">
+                <span style="font-size: 14px;">✅ {date_str}</span>
+                <span style="font-size: 20px; margin: 0 8px;">{feed_emoji}</span>
+                <strong>{feed_name}</strong>
+                <span style="color: #999; margin-left: 8px; font-size: 13px;">({feed_point}pt)</span>
+            </div>
+            """, unsafe_allow_html=True)
 
 # =========================
 # 最近の餌やり履歴(週次イベント内)
@@ -398,13 +481,18 @@ with st.expander("🔍 デバッグ情報（開発用）"):
     st.write("先週の終了:", last_week_end)
 
     st.write("🔍 餌の情報")
-    st.write("残高から判定した餌:", repr(available_food_type))
+    st.write("全餌マスタ (all_feeds):", all_feeds)
+    st.write("残高内で購入可能な餌 (affordable_feeds):", affordable_feeds)
     
-    # 残高からfeed_idを取得してテスト
-    if weekly_balance > 0:
-        test_feed_id = get_feed_id_by_points(supabase, weekly_balance)
-        test_feed_point = get_feed_point_by_id(supabase, test_feed_id)
-        st.write("取得したfeed_id:", test_feed_id)
-        st.write("必要ポイント:", test_feed_point)
+    # 以前の自動判定ロジックは削除し、新しい変数を確認する
+    
+    # 今週のポイントから決定される予定の餌
+    st.write("今週のポイントから決定される餌(current_food_type):", current_food_type)
+    
+    if weekly_balance > 0 and 'selected_feed' in locals() and selected_feed:
+        # 週次イベントが実行可能な状態かつ、選択肢の処理が通った後の情報を表示
+        st.write("ユーザー選択中の餌:", selected_feed)
+    elif weekly_balance > 0:
+         st.write("⚠️ ユーザーはまだ餌を選択していません")
     else:
-        st.write("⚠️ 残高がありません")
+         st.write("⚠️ 残高がありません (週次イベント実行不可)")

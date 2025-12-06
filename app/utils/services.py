@@ -1,4 +1,3 @@
-# app/utils/services.py
 import os
 import uuid
 from datetime import datetime, timedelta, date
@@ -66,11 +65,11 @@ def get_or_create_user_id() -> str:
             # Supabaseのusersテーブルに登録
             supabase = get_supabase_client()
             try:
-                supabase.table("users").insert({
+                # 重複エラーを避けるためupsertを使用
+                supabase.table("users").upsert({
                     "id": st.session_state.user_id
                 }).execute()
             except Exception:
-                # 既に存在する場合は無視
                 pass
         
         return st.session_state.user_id
@@ -161,6 +160,23 @@ def get_cat_by_onomatopoeia_id(supabase, onomatopoeia_id: int) -> Optional[Dict[
         st.error(f"❌ 猫マスタ取得エラー: {e}")
         return None
 
+def get_all_feeds(supabase) -> List[Dict[str, Any]]:
+    """
+    全餌マスタ（名前とポイント）を取得
+    """
+    try:
+        response = (
+            supabase.table("feed_master")
+            .select("id, feed_name, feed_point")
+            .order("feed_point") # ポイントが低い順に並べ替え
+            .execute()
+        )
+        # feed_masterのid=1(カリカリ=0pt)はイベント対象外と仮定し、ここでは全量取得
+        return response.data if response.data else []
+    except Exception as e:
+        st.error(f"❌ 餌マスタ取得エラー: {e}")
+        return []
+
 # =========================
 # ポイント管理
 # =========================
@@ -202,22 +218,6 @@ def register_mood(
 ) -> bool:
     """
     気分を登録
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-        onomatopoeia_id: オノマトペID
-        cat_id: 猫ID
-        after_mood_id: 提案後の気分ID
-        points_earned: 獲得ポイント
-        situation_id: シーンID（オプション）
-        comment: コメント（オプション）
-        character_name: 選ばれたキャラクター名（オプション）
-        rhythm_content: リズム・リセット生成内容（オプション）
-        meal_content: 料理提案生成内容（オプション）
-    
-    Returns:
-        bool: 成功時True、失敗時False
     """
     try:
         data = {
@@ -249,23 +249,46 @@ def register_mood(
 # =========================
 
 def get_food_type_by_points(points: int) -> str:
-    """ポイントに応じた餌の種類を取得"""
-    if points >= 101:
+    """
+    ポイントに応じた餌の種類を取得（最高達成ランク）
+    
+    【修正点】: 新しいポイント設計 (10, 30, 60, 100) に対応
+    """
+    # 100pt以上で「高級マグロ」がアンロック
+    if points >= 100:
         return "高級マグロ"
-    elif points >= 71:
+        
+    # 60pt以上で「サーモン」がアンロック
+    elif points >= 60:
         return "サーモン"
-    elif points >= 31:
+        
+    # 30pt以上で「ちゅ〜る」がアンロック
+    elif points >= 30:
         return "ちゅ〜る"
+        
+    # 10pt以上で「カリカリ」がアンロック
+    elif points >= 10:
+        return "カリカリ"
+        
+    # 10pt未満の場合
     else:
         return "カリカリ"
 
 def get_next_goal_message(points: int) -> str:
-    """次の目標メッセージを取得"""
-    thresholds = [(31, "ちゅ〜る"), (71, "サーモン"), (101, "高級マグロ")]
+    """
+    次の目標メッセージを取得
+    
+    【修正点】: 新しいポイント設計 (10, 30, 60, 100) に対応
+    """
+    # 目標達成に必要なポイントとその名前
+    # (目標ポイント, 餌の名前)
+    thresholds = [(10, "カリカリ"), (30, "ちゅ〜る"), (60, "サーモン"), (100, "高級マグロ")]
+    
     for threshold, food_name in thresholds:
         if points < threshold:
             remaining = threshold - points
             return f"💡 あと{remaining}ptで「{food_name}」！"
+            
     return "🎉 最高ランク達成！猫様大喜び！"
 
 # =========================
@@ -298,18 +321,12 @@ def get_month_summary(supabase, user_id: str) -> Dict[str, Any]:
         return {"total_records": 0, "total_points": 0}
 
 # =========================
-# 週次餌やりイベント
+# 週次餌やりイベント関連
 # =========================
 
+def get_last_week_points(supabase, user_id: str) -> int:
     """
     先週の合計ポイントを取得
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-    
-    Returns:
-        int: 先週の合計ポイント
     """
     today = datetime.now().date()
     this_week_start = get_week_start_date(today)
@@ -337,13 +354,6 @@ def get_month_summary(supabase, user_id: str) -> Dict[str, Any]:
 def has_fed_this_week(supabase, user_id: str) -> bool:
     """
     今週すでに週次餌やりをしたかチェック
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-    
-    Returns:
-        bool: 今週実施済みならTrue
     """
     week_start = get_week_start_date()
     
@@ -359,7 +369,7 @@ def has_fed_this_week(supabase, user_id: str) -> bool:
         if not response.data:
             return False
         
-        # feed_id >= 2 (ちゅ〜る以上)が週次イベント
+        # feed_id >= 2 (ちゅ〜る以上)が週次イベントの餌と仮定
         weekly_feeds = [log for log in response.data if log.get("feed_id", 1) >= 2]
         return len(weekly_feeds) > 0
         
@@ -368,76 +378,29 @@ def has_fed_this_week(supabase, user_id: str) -> bool:
         return False
 
 
-def get_feed_id_by_points(supabase, points: int) -> Optional[int]:
+def get_feed_point_by_id(supabase, feed_id: int) -> int:
     """
-    ポイント数に応じた餌IDを取得
-    
-    Args:
-        supabase: Supabaseクライアント
-        points: ポイント数
-    
-    Returns:
-        Optional[int]: 餌ID
+    餌IDから必要ポイントを取得
     """
-    feed_name = get_food_type_by_points(points)
-    
     try:
         response = (
             supabase.table("feed_master")
-            .select("id")
-            .eq("feed_name", feed_name)
+            .select("feed_point")
+            .eq("id", feed_id)
             .execute()
         )
         
         if response.data:
-            return response.data[0]["id"]
-        
-        # 見つからない場合はカリカリ
-        st.warning(f"⚠️ 餌「{feed_name}」が見つかりません")
-        return 1
+            return response.data[0]["feed_point"]
+        return 0
         
     except Exception as e:
-        st.error(f"❌ 餌ID取得エラー: {e}")
-        return 1
-
-
-def execute_weekly_feeding_event(supabase, user_id: str, feed_id: int) -> bool:
-    """
-    週次餌やりイベントを実行
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-        feed_id: 餌ID
-    
-    Returns:
-        bool: 成功時True
-    """
-    try:
-        supabase.table("feeding_event_log").insert({
-            "user_id": user_id,
-            "feed_id": feed_id,
-            "feed_at": datetime.now().isoformat()
-        }).execute()
-        
-        return True
-        
-    except Exception as e:
-        st.error(f"❌ 餌やりエラー: {e}")
-        return False
-
+        st.error(f"❌ 餌ポイント取得エラー: {e}")
+        return 0
 
 def get_feeding_history(supabase, user_id: str, limit: int = 3) -> List[Dict[str, Any]]:
     """
     餌やり履歴を取得
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-        limit: 取得件数
-    
-    Returns:
-        List[Dict]: 餌やり履歴のリスト
     """
     try:
         response = (
@@ -455,53 +418,61 @@ def get_feeding_history(supabase, user_id: str, limit: int = 3) -> List[Dict[str
     except Exception as e:
         st.error(f"❌ 履歴取得エラー: {e}")
         return []
-    
-# utils/services.py の最後に追加
 
-def get_last_week_points(supabase, user_id: str) -> int:
+def execute_weekly_feeding_event(supabase, user_id: str, feed_id: int) -> bool:
     """
-    先週の合計ポイントを取得
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-    
-    Returns:
-        int: 先週の合計ポイント
+    週次餌やりイベントを実行
+    """
+    try:
+        supabase.table("feeding_event_log").insert({
+            "user_id": user_id,
+            "feed_id": feed_id,
+            "feed_at": datetime.now().isoformat()
+        }).execute()
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ 餌やりエラー: {e}")
+        return False
+
+
+def initialize_weekly_points_if_needed(supabase, user_id: str) -> bool:
+    """
+    今週のweekly_pointsレコードを作成（存在しない場合のみ）
     """
     today = datetime.now().date()
-    this_week_start = get_week_start_date(today)
-    last_week_start = this_week_start - timedelta(days=7)
-    last_week_end = this_week_start - timedelta(days=1)
+    week_start = get_week_start_date(today)
     
     try:
+        # 既存レコードをチェック
         response = (
-            supabase.table("mood_register_log")
-            .select("points_earned")
+            supabase.table("weekly_points")
+            .select("id")
             .eq("user_id", user_id)
-            .gte("created_at", f"{last_week_start}T00:00:00")
-            .lte("created_at", f"{last_week_end}T23:59:59")
+            .eq("week_start_date", week_start.isoformat())
             .execute()
         )
         
         if response.data:
-            return sum(item["points_earned"] for item in response.data)
-        return 0
+            return True  # 既に存在
+        
+        # 今週分を作成（初期値0）
+        supabase.table("weekly_points").insert({
+            "user_id": user_id,
+            "week_start_date": week_start.isoformat(),
+            "total_points": 0
+        }).execute()
+        
+        return True
+        
     except Exception as e:
-        st.error(f"❌ 先週ポイント取得エラー: {e}")
-        return 0
-
+        st.error(f"❌ weekly_points初期化エラー: {e}")
+        return False
 
 def get_weekly_balance(supabase, user_id: str) -> int:
     """
     今週の餌やり可能残高を取得（先週分のポイント）
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-    
-    Returns:
-        int: 残高（先週分のポイント）
     """
     today = datetime.now().date()
     this_week_start = get_week_start_date(today)
@@ -540,14 +511,6 @@ def get_weekly_balance(supabase, user_id: str) -> int:
 def deduct_weekly_balance(supabase, user_id: str, points: int) -> bool:
     """
     残高からポイントを差し引く
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-        points: 差し引くポイント
-    
-    Returns:
-        bool: 成功時True
     """
     today = datetime.now().date()
     this_week_start = get_week_start_date(today)
@@ -584,73 +547,4 @@ def deduct_weekly_balance(supabase, user_id: str, points: int) -> bool:
         
     except Exception as e:
         st.error(f"❌ 残高更新エラー: {e}")
-        return False
-
-
-def get_feed_point_by_id(supabase, feed_id: int) -> int:
-    """
-    餌IDから必要ポイントを取得
-    
-    Args:
-        supabase: Supabaseクライアント
-        feed_id: 餌ID
-    
-    Returns:
-        int: 必要ポイント
-    """
-    try:
-        response = (
-            supabase.table("feed_master")
-            .select("feed_point")
-            .eq("id", feed_id)
-            .execute()
-        )
-        
-        if response.data:
-            return response.data[0]["feed_point"]
-        return 0
-        
-    except Exception as e:
-        st.error(f"❌ 餌ポイント取得エラー: {e}")
-        return 0
-
-
-def initialize_weekly_points_if_needed(supabase, user_id: str) -> bool:
-    """
-    今週のweekly_pointsレコードを作成（存在しない場合のみ）
-    
-    Args:
-        supabase: Supabaseクライアント
-        user_id: ユーザーID
-    
-    Returns:
-        bool: 成功時True
-    """
-    today = datetime.now().date()
-    week_start = get_week_start_date(today)
-    
-    try:
-        # 既存レコードをチェック
-        response = (
-            supabase.table("weekly_points")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("week_start_date", week_start.isoformat())
-            .execute()
-        )
-        
-        if response.data:
-            return True  # 既に存在
-        
-        # 今週分を作成（初期値0）
-        supabase.table("weekly_points").insert({
-            "user_id": user_id,
-            "week_start_date": week_start.isoformat(),
-            "total_points": 0
-        }).execute()
-        
-        return True
-        
-    except Exception as e:
-        st.error(f"❌ weekly_points初期化エラー: {e}")
         return False
