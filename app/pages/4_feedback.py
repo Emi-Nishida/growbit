@@ -7,6 +7,8 @@ from utils.services import (
 )
 from utils.ui import setup_page
 import pandas as pd
+from datetime import date, timedelta
+from supabase import create_client, Client
 
 # ページ設定
 setup_page(
@@ -19,73 +21,55 @@ setup_page(
 
 # Supabase接続
 supabase = get_supabase_client()
-user_id = get_or_create_user_id()
-
-# ---------------------------------------------
-# ユーザーIDの取得(追加_解明必要)
-# ---------------------------------------------
-try:
-    # Supabase Authから現在のユーザーID (UUID) を取得
-    # ※この関数はSupabase Authのセットアップに応じて実装が必要です
-    current_user_id = get_current_user_id() 
-except Exception:
-    st.error("ログインユーザーIDの取得に失敗しました。")
-    st.stop()
 
 # ===================================
-# 今週のポイントを取得
+# 今週と先週の餌ポイントを取得
 # ===================================
 try:
-    # 今週のポイント取得_石原変更
-    weekly_point_query = """
-    SELECT SUM(amm.point) AS total_weekly_points
-    FROM mood_register_log AS mrl
-    INNER JOIN after_mood_master AS amm ON mrl.after_mood_id = amm.id
-    WHERE mrl.created_at >= date_trunc('week', NOW() - INTERVAL '1 day')::date + INTERVAL '1 day'
-    AND mrl.created_at < date_trunc('week', NOW() - INTERVAL '1 day')::date + INTERVAL '8 days'
-    AND mrl.user_id = %(user_id)s;
-    """
-    total_weekly_points = 0
-    # st.connection を使用してSQLを実行
-    # secrets.tomlに [connections.supabase] が設定されている必要があります
-    conn = st.connection("supabase", type="sql")
-        
-    # クエリを実行し、user_idをパラメータとして渡す
-    df: pd.DataFrame = conn.query(
-        weekly_point_query, 
-        params={'user_id': current_user_id}
-    )
-        
-    # 結果からポイントを抽出
-    # データフレームが空でない、かつ 'total_weekly_points' がNULLでないことを確認
-    if not df.empty and df['total_weekly_points'].iloc[0] is not None:
-        total_weekly_points = int(df['total_weekly_points'].iloc[0])
+    # 関数呼び出し
+    result = supabase.rpc("weekly_points_users").execute()
+
+    # DataFrameに変換
+    df = pd.DataFrame(result.data)
+
+    # 今日の日付
+    today = date.today()
+
+    # 今週の月曜と先週の月曜を計算
+    monday_this_week = today - timedelta(days=today.weekday())
+    monday_last_week = monday_this_week - timedelta(weeks=1)
+
+    # 対象ユーザーのUUID★★★後で変更
+    target_user_id = get_or_create_user_id()
+
+    # 特定ユーザーだけ抽出
+    user_df = df[df["user_id"] == target_user_id]
+
+    # 今週と先週のポイント抽出（特定ユーザーのみ）
+    points_this_week = user_df.loc[user_df["week_start"] == monday_this_week.isoformat(), "total_points"].sum()
+    points_last_week = user_df.loc[user_df["week_start"] == monday_last_week.isoformat(), "total_points"].sum()
+
+    # 表示
+    print("=== 今週のポイント ===")
+    print(points_this_week)
+
+    print("=== 先週のポイント ===")
+    print(points_last_week)
         
 except Exception as e:
         st.error(f"❌ 週次ポイント計算エラーが発生しました: {e}")
 
 # =========================
-# 月次サマリ取得
+# 生成AI分析用ロジック
 # =========================    
 ## ---------------------------------------------
 ## A. ログ取得と整形のためのユーティリティ関数
 ## ---------------------------------------------
 
-def get_start_of_week() -> str:
-    """今週の月曜日（ISO形式）を返す"""
-    today = date.today()
-    start_of_week = today - timedelta(days=today.weekday())
-    return start_of_week.isoformat()
-
-
 def fetch_user_logs_for_analysis(user_id: str, week_start_iso: str) -> List[Dict[str, Any]]:
     """
     Supabaseからユーザーの週間ログと関連する感情名を取得する
     """
-    supabase = get_supabase_client()
-    if not supabase:
-        return []
-        
     try:
         # mood_register_log からメモと作成日時を取得し、
         # after_mood_master から感情名（mood_name）を取得（外部キー結合）
@@ -127,44 +111,82 @@ def analyze_mood_logs(logs_text: str) -> str:
     """Gemini APIを呼び出し、分析結果を返す"""
     
     # 認証情報を secrets.toml から取得
-    if "GEMINI_API_KEY" not in st.secrets:
-        return "🚨 GEMINI_API_KEY が secrets.toml に設定されていません。"
+    if "OPENAI_API_KEY" not in st.secrets:
+        return "🚨 OPENAI_API_KEY が secrets.toml に設定されていません。"
 
     try:
-        api_key = st.secrets["GEMINI_API_KEY"]
-        client = genai.Client(api_key=api_key)
+        client = OpenAI()
 
         # AIへの指示文
         system_instruction = (
             "あなたはユーザーの気分ログを分析する優秀なAIアシスタントです。 "
-            "以下のログから、ユーザーの感情の傾向、主なストレス源、ポジティブな要素を日本語で簡潔に分析してください。"
-            "分析結果はMarkdown形式で、必ず以下の見出しを使ってまとめてください。"
+            "以下のオノマトペログから、ユーザーの31日間の入力した状況にともなう身体状態、感情の傾向を日本語で簡潔に分析してください。"
+            "また、その状態から改善するのに最適な行動案を提案してください"
+            "分析結果はMarkdown形式で、3行で出力してください。"
         )
         
         prompt = (
             f"{system_instruction}\n\n"
             f"--- [ユーザーの気分ログ（全{len(logs_text.splitlines())}件）] ---\n"
             f"{logs_text}\n"
-            f"---------------------------\n\n"
-            f"1. **今週の主な感情の傾向**\n"
-            f"2. **ストレスまたはネガティブな要素と要因**\n"
-            f"3. **ポジティブな行動や出来事**"
         )
 
-        response = client.models.generate_content(
-            model='gemini-2.5-flash', # 分析に適したモデル
+        output_analysis_result = client.models.generate_content(
+            model='gpt-5 nano',
             contents=prompt
         )
         
-        return response.text
+        return output_analysis_result.text
 
     except Exception as e:
         return f"AI分析エラーが発生しました: {type(e).__name__}: {e}"
 
+# =========================
+# 月次サマリ取得
+# =========================
+
+summary = get_month_summary(supabase, user_id)
+total_records = summary["total_records"]
+total_points = summary["total_points"]
 
 ## ---------------------------------------------
 ## C. Streamlit アプリのメインロジック
 ## ---------------------------------------------
+
+# =========================
+# サマリ表示
+# =========================
+
+st.markdown("### 📈 今週の記録")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(
+        label="記録回数",
+        value=f"{total_records}回"
+    )
+
+with col2:
+    st.metric(
+        label="獲得ポイント",
+        value=f"{total_weekly_points}pt"
+    )
+
+# =========================
+# メッセージ
+# =========================
+
+st.markdown("---")
+
+if total_records == 0:
+    st.info("📝 まだ記録がありません。気分を記録して猫様と一緒に前向きになろう！")
+elif total_records < 5:
+    st.success("🌱 記録を始めましたね！この調子で続けましょう！")
+elif total_records < 10:
+    st.success("🌿 順調に記録が続いています！素晴らしい！")
+else:
+    st.success("🌟 たくさん記録していますね！継続は力なり！")
 
 # 2. 分析期間（今週）の決定
 week_start_iso = get_start_of_week()
@@ -205,48 +227,6 @@ if st.button("AI分析を実行する", type="primary"):
     
 else:
     st.info("上のボタンを押して分析を開始してください。")
-# =========================
-# 月次サマリ取得
-# =========================
-
-summary = get_month_summary(supabase, user_id)
-total_records = summary["total_records"]
-total_points = summary["total_points"]
-
-# =========================
-# サマリ表示
-# =========================
-
-st.markdown("### 📈 今週の記録")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.metric(
-        label="記録回数",
-        value=f"{total_records}回"
-    )
-
-with col2:
-    st.metric(
-        label="獲得ポイント",
-        value=f"{total_weekly_points}pt"
-    )
-
-# =========================
-# メッセージ
-# =========================
-
-st.markdown("---")
-
-if total_records == 0:
-    st.info("📝 まだ記録がありません。気分を記録して猫様と一緒に前向きになろう！")
-elif total_records < 5:
-    st.success("🌱 記録を始めましたね！この調子で続けましょう！")
-elif total_records < 10:
-    st.success("🌿 順調に記録が続いています！素晴らしい！")
-else:
-    st.success("🌟 たくさん記録していますね！継続は力なり！")
 
 # =========================
 # 余力対応: 詳細情報
