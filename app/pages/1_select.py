@@ -13,7 +13,7 @@ from utils.constants import ONOMATOPOEIA_EMOJIS
 
 # ページ設定
 setup_page(
-    page_title="😊 今の気分は？",
+    page_title="😊 あなたの今の気分は？",
     page_icon="😺",
     show_home=True,
     home_href="/",
