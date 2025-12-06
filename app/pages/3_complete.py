@@ -113,7 +113,7 @@ with col2:
         )
     
     # 次の目標（文字サイズを大きく＋センタリング）
-    for threshold, food_name in [(31, "ちゅ~る"), (71, "サーモン"), (101, "高級マグロ")]:
+    for threshold, food_name in [(31, "ちゅ〜る"), (71, "サーモン"), (101, "高級マグロ")]:
         if week_points < threshold:
             remaining = threshold - week_points
             st.markdown(
