@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any, List
 
 import streamlit as st
 from dotenv import load_dotenv
+from datetime import datetime, timezone
 
 # .env 読み込み
 load_dotenv(dotenv_path=".env")
@@ -239,6 +240,39 @@ def register_mood(
             data["meal_content"] = meal_content
         
         supabase.table("mood_register_log").insert(data).execute()
+
+        # === weekly_points 更新処理 20251206石原追加===
+        now = datetime.now(timezone.utc)
+        week_start_date = get_week_start_date(now)
+
+        existing_weekly = (
+            supabase.table("weekly_points")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("week_start_date", str(week_start_date))
+            .execute()
+        )
+
+        if existing_weekly.data:
+            # レコードが存在する場合 → 更新
+            current_points = existing_weekly.data[0]["total_points"]
+            new_points = current_points + points_earned
+            supabase.table("weekly_points").update({
+                "total_points": new_points,
+                "updated_at": now.isoformat()
+            }).eq("id", existing_weekly.data[0]["id"]).execute()
+        else:
+            # レコードが存在しない場合 → 新規作成
+            supabase.table("weekly_points").insert({
+                "user_id": user_id,
+                "week_start_date": str(week_start_date),
+                "total_points": points_earned,
+                "exchangeable_next_week": True,
+                "exchangeable": False,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }).execute()
+
         return True
     except Exception as e:
         st.error(f"❌ 気分登録エラー: {e}")

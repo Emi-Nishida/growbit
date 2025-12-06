@@ -29,8 +29,8 @@ today = date.today()
 monday_this_week = today - timedelta(days=today.weekday())  # 月曜始まり
 monday_last_week = monday_this_week - timedelta(weeks=1)
 
-# 対象ユーザーのUUID★★★後で変更 #get_or_create_user_id()
-target_user_id = "7ff121b7-ea36-4e9a-b642-1cc0b189b156"
+# 対象ユーザーのUUID★★★後で変更 #7ff121b7-ea36-4e9a-b642-1cc0b189b156もしくはget_or_create_user_id()
+target_user_id = get_or_create_user_id()
 
 # ===================================
 # ログをまとめて取得（Supabaseクエリを1回に統合）★変更点
