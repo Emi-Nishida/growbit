@@ -301,7 +301,6 @@ def get_month_summary(supabase, user_id: str) -> Dict[str, Any]:
 # 週次餌やりイベント
 # =========================
 
-def get_last_week_total_points(supabase, user_id: str) -> int:
     """
     先週の合計ポイントを取得
     
@@ -456,3 +455,202 @@ def get_feeding_history(supabase, user_id: str, limit: int = 3) -> List[Dict[str
     except Exception as e:
         st.error(f"❌ 履歴取得エラー: {e}")
         return []
+    
+# utils/services.py の最後に追加
+
+def get_last_week_points(supabase, user_id: str) -> int:
+    """
+    先週の合計ポイントを取得
+    
+    Args:
+        supabase: Supabaseクライアント
+        user_id: ユーザーID
+    
+    Returns:
+        int: 先週の合計ポイント
+    """
+    today = datetime.now().date()
+    this_week_start = get_week_start_date(today)
+    last_week_start = this_week_start - timedelta(days=7)
+    last_week_end = this_week_start - timedelta(days=1)
+    
+    try:
+        response = (
+            supabase.table("mood_register_log")
+            .select("points_earned")
+            .eq("user_id", user_id)
+            .gte("created_at", f"{last_week_start}T00:00:00")
+            .lte("created_at", f"{last_week_end}T23:59:59")
+            .execute()
+        )
+        
+        if response.data:
+            return sum(item["points_earned"] for item in response.data)
+        return 0
+    except Exception as e:
+        st.error(f"❌ 先週ポイント取得エラー: {e}")
+        return 0
+
+
+def get_weekly_balance(supabase, user_id: str) -> int:
+    """
+    今週の餌やり可能残高を取得（先週分のポイント）
+    
+    Args:
+        supabase: Supabaseクライアント
+        user_id: ユーザーID
+    
+    Returns:
+        int: 残高（先週分のポイント）
+    """
+    today = datetime.now().date()
+    this_week_start = get_week_start_date(today)
+    last_week_start = this_week_start - timedelta(days=7)
+    
+    try:
+        # 先週のweekly_pointsを取得
+        response = (
+            supabase.table("weekly_points")
+            .select("total_points")
+            .eq("user_id", user_id)
+            .eq("week_start_date", last_week_start.isoformat())
+            .execute()
+        )
+        
+        if response.data:
+            return response.data[0]["total_points"]
+        
+        # なければ先週分を集計して作成
+        last_week_points = get_last_week_points(supabase, user_id)
+        
+        if last_week_points > 0:
+            supabase.table("weekly_points").insert({
+                "user_id": user_id,
+                "week_start_date": last_week_start.isoformat(),
+                "total_points": last_week_points
+            }).execute()
+        
+        return last_week_points
+        
+    except Exception as e:
+        st.error(f"❌ 残高取得エラー: {e}")
+        return 0
+
+
+def deduct_weekly_balance(supabase, user_id: str, points: int) -> bool:
+    """
+    残高からポイントを差し引く
+    
+    Args:
+        supabase: Supabaseクライアント
+        user_id: ユーザーID
+        points: 差し引くポイント
+    
+    Returns:
+        bool: 成功時True
+    """
+    today = datetime.now().date()
+    this_week_start = get_week_start_date(today)
+    last_week_start = this_week_start - timedelta(days=7)
+    
+    try:
+        # 現在の残高を取得
+        response = (
+            supabase.table("weekly_points")
+            .select("id, total_points")
+            .eq("user_id", user_id)
+            .eq("week_start_date", last_week_start.isoformat())
+            .execute()
+        )
+        
+        if not response.data:
+            st.error("❌ 残高データが見つかりません")
+            return False
+        
+        record = response.data[0]
+        current_balance = record["total_points"]
+        
+        if current_balance < points:
+            st.error(f"❌ 残高不足です（残高: {current_balance}pt、必要: {points}pt）")
+            return False
+        
+        # 残高を更新
+        new_balance = current_balance - points
+        supabase.table("weekly_points").update({
+            "total_points": new_balance
+        }).eq("id", record["id"]).execute()
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ 残高更新エラー: {e}")
+        return False
+
+
+def get_feed_point_by_id(supabase, feed_id: int) -> int:
+    """
+    餌IDから必要ポイントを取得
+    
+    Args:
+        supabase: Supabaseクライアント
+        feed_id: 餌ID
+    
+    Returns:
+        int: 必要ポイント
+    """
+    try:
+        response = (
+            supabase.table("feed_master")
+            .select("feed_point")
+            .eq("id", feed_id)
+            .execute()
+        )
+        
+        if response.data:
+            return response.data[0]["feed_point"]
+        return 0
+        
+    except Exception as e:
+        st.error(f"❌ 餌ポイント取得エラー: {e}")
+        return 0
+
+
+def initialize_weekly_points_if_needed(supabase, user_id: str) -> bool:
+    """
+    今週のweekly_pointsレコードを作成（存在しない場合のみ）
+    
+    Args:
+        supabase: Supabaseクライアント
+        user_id: ユーザーID
+    
+    Returns:
+        bool: 成功時True
+    """
+    today = datetime.now().date()
+    week_start = get_week_start_date(today)
+    
+    try:
+        # 既存レコードをチェック
+        response = (
+            supabase.table("weekly_points")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("week_start_date", week_start.isoformat())
+            .execute()
+        )
+        
+        if response.data:
+            return True  # 既に存在
+        
+        # 今週分を作成（初期値0）
+        supabase.table("weekly_points").insert({
+            "user_id": user_id,
+            "week_start_date": week_start.isoformat(),
+            "total_points": 0
+        }).execute()
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ weekly_points初期化エラー: {e}")
+        return False

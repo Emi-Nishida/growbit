@@ -2,18 +2,21 @@
 import streamlit as st
 import unicodedata
 import time
+
 from utils.services import (
     get_supabase_client,
     get_or_create_user_id,
     get_current_week_points,
+    get_weekly_balance,
     get_food_type_by_points,
     get_next_goal_message,
-    get_last_week_total_points,
-    has_fed_this_week,
     get_feed_id_by_points,
+    get_feed_point_by_id,
+    deduct_weekly_balance,
     execute_weekly_feeding_event,
     get_feeding_history,
     get_week_start_date,
+    initialize_weekly_points_if_needed,
 )
 from utils.constants import FOOD_EMOJIS, CAT_EXPRESSIONS, PAGE_CONFIG
 from utils.ui import inject_base_styles
@@ -27,43 +30,30 @@ inject_base_styles()
 supabase = get_supabase_client()
 user_id = get_or_create_user_id()
 
+# =========================
 # データ取得
+# =========================
+
+# 今週分のweekly_pointsレコードを初期化（なければ作成）
+initialize_weekly_points_if_needed(supabase, user_id)
+
+# 今週のポイント
 week_points = get_current_week_points(supabase, user_id)
 
-# 先週の開始日を明示的に指定してポイントを取得
-today = datetime.now().date()
-this_week_start = get_week_start_date(today)
-last_week_start = this_week_start - timedelta(days=7)
-
-last_week_points = get_last_week_total_points(supabase, user_id)
-already_fed = has_fed_this_week(supabase, user_id)
-
-response = (
-    supabase.table("weekly_points")
-    .select("total_points")
-    .eq("user_id", user_id)
-    .eq("week_start_date", last_week_start.isoformat())
-    .execute()
-)
-
-if response.data:
-    last_week_points = response.data[0]["total_points"]
-else:
-    last_week_points = 0
-
-already_fed = has_fed_this_week(supabase, user_id)
+# 餌やり可能残高（先週分）
+weekly_balance = get_weekly_balance(supabase, user_id)
 
 # 今週の餌(予定)
 current_food_type = get_food_type_by_points(week_points)
 current_food_emoji = FOOD_EMOJIS.get(current_food_type, "🐱")
 current_cat_expression = CAT_EXPRESSIONS.get(current_food_type, "🐱")
 
-# 先週の餌
-last_week_food_type = get_food_type_by_points(last_week_points)
-last_week_food_emoji = FOOD_EMOJIS.get(last_week_food_type, "🐱")
-last_week_cat_expression = CAT_EXPRESSIONS.get(last_week_food_type, "🐱")
+# 餌やり可能な餌（残高ベース）
+available_food_type = get_food_type_by_points(weekly_balance)
+available_food_emoji = FOOD_EMOJIS.get(available_food_type, "🐱")
+available_cat_expression = CAT_EXPRESSIONS.get(available_food_type, "🐱")
 
-# 先週の日付範囲
+# 先週の日付範囲（表示用）
 today = datetime.now().date()
 this_week_start = get_week_start_date(today)
 last_week_start = this_week_start - timedelta(days=7)
@@ -168,8 +158,8 @@ with col_left:
     # 猫と餌の絵文字
     st.markdown(
         f"""
-        <div style="text-align:center; padding:20px; background:#f9f9f9; border-radius:10px; margin:10px 0;">
-            <div style="font-size:40px; margin-bottom:10px;">{current_cat_expression} {current_food_emoji}</div>
+        <div style="text-align:center; padding:15px; background:#f9f9f9; border-radius:10px; margin:10px 0;">
+            <div style="font-size:40px; margin-bottom:8px;">{current_cat_expression} {current_food_emoji}</div>
             <p style="font-size:16px; margin:0; color:#666;">来週もらえる餌<br><strong>{current_food_type}</strong></p>
         </div>
         """,
@@ -179,6 +169,54 @@ with col_left:
     # 次の目標
     next_goal = get_next_goal_message(week_points)
     st.info(next_goal)
+    
+    # 餌の種類プレビュー（小さく表示）
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+    st.markdown("**🍽️ 餌の種類**")
+    st.caption("ポイントを貯めて猫様に豪華な餌を！")
+    
+    # 2x2グリッドで4種の餌を表示
+    food_col1, food_col2 = st.columns(2)
+    
+    food_items = [
+        ("カリカリ", 0, "🍚"),
+        ("ちゅ〜る", 31, "🍥"),
+        ("サーモン", 71, "🐟"),
+        ("高級マグロ", 101, "🍣"),
+    ]
+    
+    for idx, (food_name, threshold, emoji) in enumerate(food_items):
+        target_col = food_col1 if idx % 2 == 0 else food_col2
+        
+        with target_col:
+            unlocked = week_points >= threshold
+            is_current = food_name == current_food_type
+            
+            # スタイル設定
+            opacity = "1.0" if unlocked else "0.4"
+            border_color = "#667eea" if is_current else "#ddd"
+            bg_color = "#f0f4ff" if is_current else "#f9f9f9"
+            status = "✓" if unlocked else "🔒"
+            
+            st.markdown(
+                f"""
+                <div style="
+                    text-align:center; 
+                    padding:8px; 
+                    margin:3px 0;
+                    border:2px solid {border_color}; 
+                    border-radius:8px; 
+                    background-color:{bg_color}; 
+                    opacity:{opacity};
+                ">
+                    <div style="font-size:24px; margin-bottom:2px;">{emoji}</div>
+                    <p style="margin:2px 0; font-weight:bold; font-size:11px;">{food_name}</p>
+                    <p style="margin:0; font-size:9px; color:#666;">{threshold}pt~</p>
+                    <p style="margin:2px 0; font-size:14px;">{status}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
 # ---------------------
 # 右側: 週次餌やりイベント
@@ -187,38 +225,19 @@ with col_right:
     st.markdown("#### 🍽️ 週次餌やりイベント")
     st.caption(f"先週({last_week_range})貯めたポイントで、特別な餌をあげよう!")
     
-    if last_week_points == 0:
-        # 先週ポイントがない
-        st.info("💡 先週のポイントがありません")
+    if weekly_balance == 0:
+        # 残高がない
+        st.info("💡 餌やり可能なポイントがありません")
         st.caption("今週気分を登録してポイントを貯めましょう!")
     
-    elif already_fed:
-        # すでに餌やり済み
-        st.success("✅ 今週はすでに餌をあげました!")
-        
-        st.markdown(f"""
-        <div style="
-            text-align: center;
-            padding: 25px;
-            background: linear-gradient(135deg, #fff9e6 0%, #ffe6f0 100%);
-            border-radius: 12px;
-            margin: 15px 0;
-        ">
-            <div style="font-size: 60px; margin-bottom: 10px;">😻😻😻</div>
-            <p style="font-size: 16px; color: #666; margin: 0;">
-                猫様たちは大満足！<br>
-                また来週も頑張りましょう！
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
     else:
-        # 餌やり可能
+        # 残高表示
         st.metric(
-            label="先週の獲得ポイント", 
-            value=f"{last_week_points}pt"
+            label="餌やり可能残高", 
+            value=f"{weekly_balance}pt"
         )
         
+        # 現在選べる餌
         st.markdown(f"""
         <div style="
             text-align: center;
@@ -228,57 +247,60 @@ with col_right:
             border: 2px solid #667eea;
             margin: 10px 0;
         ">
-            <div style="font-size: 40px; margin-bottom: 5px;">{last_week_cat_expression} {last_week_food_emoji}</div>
+            <div style="font-size: 40px; margin-bottom: 5px;">{available_cat_expression} {available_food_emoji}</div>
             <p style="font-size: 16px; margin: 0; color: #666;">
-                今週の特別な餌<br>
-                <strong>{last_week_food_type}</strong>
+                選べる餌<br>
+                <strong>{available_food_type}</strong>
             </p>
         </div>
         """, unsafe_allow_html=True)
         
         # 餌やりボタン
         if st.button(
-            f"🍽️ {last_week_food_type}をあげる", 
+            f"🍽️ {available_food_type}をあげる", 
             key="weekly_feed_button", 
             type="primary", 
             use_container_width=True
         ):
             # 餌IDを取得
-            feed_id = get_feed_id_by_points(supabase, last_week_points)
+            feed_id = get_feed_id_by_points(supabase, weekly_balance)
+            feed_point = get_feed_point_by_id(supabase, feed_id)
             
-            # 餌やり実行
-            success = execute_weekly_feeding_event(supabase, user_id, feed_id)
-            
-            if success:
-                st.success(f"🎉 {last_week_food_type}を全員にあげました!")
-                st.balloons()
+            # 残高チェック＆減算
+            if deduct_weekly_balance(supabase, user_id, feed_point):
+                # 餌やり実行
+                success = execute_weekly_feeding_event(supabase, user_id, feed_id)
                 
-                # アニメーション表示
-                st.markdown(f"""
-                <div style="
-                    text-align: center;
-                    padding: 35px;
-                    background: linear-gradient(135deg, #ffeb3b 0%, #ff9800 100%);
-                    border-radius: 20px;
-                    margin: 20px 0;
-                    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-                ">
-                    <div style="font-size: 80px; margin-bottom: 15px;">{last_week_cat_expression}{last_week_cat_expression}{last_week_cat_expression}</div>
-                    <h2 style="color: white; margin: 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-                        猫様たち大喜び！
-                    </h2>
-                    <p style="font-size: 16px; color: white; margin: 0;">
-                        今週も頑張りましょう！
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # 3秒待ってからリロード
-                time.sleep(3)
-                st.rerun()
-
-            else:
-                st.error("❌ 餌やりに失敗しました。もう一度お試しください。")
+                if success:
+                    new_balance = weekly_balance - feed_point
+                    
+                    st.success(f"🎉 {available_food_type}をあげました!")
+                    st.balloons()
+                    
+                    # アニメーション表示
+                    st.markdown(f"""
+                    <div style="
+                        text-align: center;
+                        padding: 35px;
+                        background: linear-gradient(135deg, #ffeb3b 0%, #ff9800 100%);
+                        border-radius: 20px;
+                        margin: 20px 0;
+                        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+                    ">
+                        <div style="font-size: 80px; margin-bottom: 15px;">{available_cat_expression}{available_cat_expression}{available_cat_expression}</div>
+                        <h2 style="color: white; margin: 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                            猫様たち大喜び！
+                        </h2>
+                        <p style="font-size: 16px; color: white; margin: 0;">
+                            残高: {new_balance}pt<br>
+                            また餌をあげられます！
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 2秒待ってからリロード
+                    time.sleep(2)
+                    st.rerun()
 
 # =========================
 # 最近の餌やり履歴(週次イベント内)
@@ -368,60 +390,21 @@ with st.expander("📖 このアプリの使い方を見る", expanded=False):
 # =========================
 with st.expander("🔍 デバッグ情報（開発用）"):
     st.write("user_id:", user_id)
-    st.write("last_week_points:", last_week_points)
+    st.write("week_points (今週):", week_points)
+    st.write("weekly_balance (残高):", weekly_balance)
     st.write("今日:", today)
     st.write("今週の開始:", this_week_start)
     st.write("先週の開始:", last_week_start)
     st.write("先週の終了:", last_week_end)
 
     st.write("🔍 餌の情報")
-    st.write("ポイントから判定した餌:", repr(last_week_food_type))
-    st.write("餌のバイト列:", last_week_food_type.encode('utf-8').hex())
-    st.write("餌の長さ:", len(last_week_food_type))
-
-    # 波ダッシュ(U+301C)を全角チルダ(U+FF5E)に置換
-    normalized_food = last_week_food_type.replace("\u301C", "\uFF5E").strip()
-    st.write("正規化後の餌名:", repr(normalized_food))
-    st.write("正規化後のバイト列:", normalized_food.encode('utf-8').hex())
-    st.write("正規化後の長さ:", len(normalized_food))
-
-    # NFKC正規化
-    normalized_food = unicodedata.normalize("NFKC", last_week_food_type).strip()
-
-    # --- ① feed_name検索（文字列一致チェック用）
-    response = supabase.table("feed_master").select("*").eq("feed_name", normalized_food).execute()
-    st.write("🔍 feed_name 検索結果:", response)
-
-    if response.data:
-        db_name = response.data[0]['feed_name']
-        st.write("DBの餌名:", repr(db_name))
-        st.write("DBのバイト列:", db_name.encode('utf-8').hex())
-        st.write("Pythonとの一致?:", last_week_food_type == db_name)
-        st.write("正規化後との一致?:", normalized_food == db_name)
+    st.write("残高から判定した餌:", repr(available_food_type))
+    
+    # 残高からfeed_idを取得してテスト
+    if weekly_balance > 0:
+        test_feed_id = get_feed_id_by_points(supabase, weekly_balance)
+        test_feed_point = get_feed_point_by_id(supabase, test_feed_id)
+        st.write("取得したfeed_id:", test_feed_id)
+        st.write("必要ポイント:", test_feed_point)
     else:
-        st.write("⚠️ DBデータ取得失敗")
-
-    st.write("---")
-
-    # --- ② feed_point検索（ポイントから餌を判定する本流）
-    points = int(last_week_points)  # DBから取得した値を利用
-    response = (
-        supabase.table("feed_master")
-        .select("*")
-        .lte("feed_point", points)
-        .order("feed_point", desc=True)
-        .limit(1)
-        .execute()
-    )
-    st.write(f"🔍 feed_point<={points} の最大行:", response)
-
-    if response.data:
-        feed = response.data[0]
-        feed_id = feed["id"]
-        feed_name = feed["feed_name"]
-        st.write("取得したfeed_id:", feed_id)
-        st.write(f"✅ {points}ポイントに対応する餌は: {feed_name}")
-    else:
-        st.write("⚠️ ポイントから餌が判定できません")
-
-    st.markdown("---")
+        st.write("⚠️ 残高がありません")
