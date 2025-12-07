@@ -24,6 +24,35 @@ setup_page(
 # Supabase接続
 supabase = get_supabase_client()
 
+# 今日の日付
+today = date.today()
+monday_this_week = today - timedelta(days=today.weekday())  # 月曜始まり
+monday_last_week = monday_this_week - timedelta(weeks=1)
+
+# 対象ユーザーのUUID★★★後で変更 #7ff121b7-ea36-4e9a-b642-1cc0b189b156もしくはget_or_create_user_id()
+target_user_id = get_or_create_user_id()
+
+# ===================================
+# ログをまとめて取得（Supabaseクエリを1回に統合）★変更点
+# ===================================
+start_date_31days = (date.today() - timedelta(days=31)).isoformat()
+logs_response = (
+    supabase.table("mood_register_log")
+    .select("id, created_at, situation_master(situation), onomatopoeia_master(onomatopoeia)")
+    .eq("user_id", target_user_id)
+    .gte("created_at", start_date_31days)
+    .execute()
+)
+df_logs = pd.DataFrame(logs_response.data)
+
+# 今週・先週・31日間の件数を pandas 側で計算
+this_week_log_count = df_logs[df_logs["created_at"] >= monday_this_week.isoformat()].shape[0]
+last_week_log_count = df_logs[
+    (df_logs["created_at"] >= monday_last_week.isoformat()) &
+    (df_logs["created_at"] < monday_this_week.isoformat())
+].shape[0]
+last_31days_log_count = df_logs.shape[0]
+
 # ===================================
 # 今週と先週の餌ポイントを取得
 # ===================================
@@ -32,20 +61,10 @@ try:
     result = supabase.rpc("weekly_points_users").execute()
 
     # DataFrameに変換
-    df = pd.DataFrame(result.data)
-
-    # 今日の日付
-    today = date.today()
-
-    # 今週の月曜と先週の月曜を計算
-    monday_this_week = today - timedelta(days=today.weekday())
-    monday_last_week = monday_this_week - timedelta(weeks=1)
-
-    # 対象ユーザーのUUID★★★後で変更 #get_or_create_user_id()
-    target_user_id = "7ff121b7-ea36-4e9a-b642-1cc0b189b156"
+    df_points = pd.DataFrame(result.data)
 
     # 特定ユーザーだけ抽出
-    user_df = df[df["user_id"] == target_user_id]
+    user_df = df_points[df_points["user_id"] == target_user_id]
 
     # 今週と先週のポイント抽出（特定ユーザーのみ）
     points_this_week = user_df.loc[user_df["week_start"] == monday_this_week.isoformat(), "total_points"].sum()
@@ -80,44 +99,22 @@ df_last_week_row_count = pd.DataFrame(last_week_row_count.data)
 last_week_log_count = df_last_week_row_count.shape[0]
 
 # ===================================
-# 直近31日間の記録取得
+# ログ整形（json_normalizeで高速化）★変更点
 # ===================================
-#ログの行をカウント
-month_row_count = (
-    supabase.table("mood_register_log")
-    .select("id")
-    .gte("created_at", (date.today() - timedelta(days=31)).isoformat())  # 直近31日間
-    .execute()
-)
-df_month_row_count = pd.DataFrame(month_row_count.data)
-last_31days_log_count = df_month_row_count.shape[0]
+df_logs["日付"] = df_logs["created_at"].str[:10]
 
-# 直近31日間のログ取得
-start_date_31days = (date.today() - timedelta(days=31)).isoformat()
-logs_response = (
-    supabase.table("mood_register_log")
-    .select("created_at, situation_master(situation), onomatopoeia_master(onomatopoeia)") 
-    .eq("user_id", target_user_id)
-    .gte("created_at", start_date_31days)
-    .order("created_at", desc=True)
-    .execute()
-)
-
-last31days_logs_df = pd.DataFrame(logs_response.data)
-
-# 日付＋日本語曜日に整形
-last31days_logs_df["日付"] = last31days_logs_df["created_at"].str[:10]
-
-# ネストされた辞書を展開
-last31days_logs_df["シーン"] = last31days_logs_df["situation_master"].apply(
-    lambda x: x["situation"] if isinstance(x, dict) else ""
-)
-last31days_logs_df["オノマトペ"] = last31days_logs_df["onomatopoeia_master"].apply(
-    lambda x: x["onomatopoeia"] if isinstance(x, dict) else ""
-)
+# ネスト展開を apply ではなく json_normalize に変更
+situations = pd.json_normalize(df_logs["situation_master"])
+onomatopoeias = pd.json_normalize(df_logs["onomatopoeia_master"])
+df_logs["シーン"] = situations["situation"]
+df_logs["オノマトペ"] = onomatopoeias["onomatopoeia"]
 
 # 必要な列だけ残す
-log_display_df = last31days_logs_df[["日付", "状況", "オノマトペ"]].reset_index(drop=True)
+log_display_df = df_logs[["日付", "シーン", "オノマトペ"]]
+
+#新しい日付が上に来るように並び替え
+log_display_df = log_display_df.sort_values(by="日付", ascending=False).reset_index(drop=True)
+
 # インデックスを 1 からにする
 log_display_df.index = log_display_df.index + 1
 
@@ -129,11 +126,13 @@ log_display_df.index = log_display_df.index + 1
 ## A. 生成AI API 呼び出し関数
 ## ---------------------------------------------
 client = OpenAI()
-def run_gpt():
+#GPT呼び出しをキャッシュ化
+@st.cache_data(ttl=3600) # キャッシュの有効期限を1時間に設定
+def run_gpt_cached(logs_text):
     request_to_gpt = f"""
     あなたはユーザーの感情データを分析する優秀なアシスタントです。以下は、あるユーザーが過去31日間に記録した感情データです。
     各行には、記録日時、状況の説明、感情を表すオノマトペが含まれています。
-    これらのデータをもとに、ユーザーの身体状態、感情傾向を分析し、具体的で役立つ食事以外のフィードバックを猫風にMarkdown形式で提供してください。
+    これらのデータをもとに、ユーザーの身体状態、感情傾向を分析し、今の状況を改善して日々のパフォーマンスを向上させる具体的で役立つ食事以外のフィードバックを猫風にMarkdown形式で提供してください。
     **Markdownの構造ルール：**
     - 最初に大きなタイトルは不要です（`#`や`##`は使わない）
     - 最初に一文で総括を述べてください
@@ -164,11 +163,11 @@ try:
         f"{row['created_at']}: "
         f"{row['situation_master']['situation'] if row.get('situation_master') else ''}: "
         f"{row['onomatopoeia_master']['onomatopoeia'] if row.get('onomatopoeia_master') else ''}"
-        for _, row in last31days_logs_df.iterrows()
+        for _, row in df_logs.iterrows()
     )
     #生成AI分析実行
     with st.spinner("振り返りを作成中です。少々お待ちくださいニャ…🐾"):
-        output_content_text = run_gpt()
+        output_content_text = run_gpt_cached(logs_text)
 except Exception as e:
     st.error(f"AI分析エラーが発生しました: {type(e).__name__}: {e}")
 
@@ -214,7 +213,7 @@ else:
     st.info(output_content_text)
 
 with st.expander("📂 直近31日のログを表示"):
-    st.table(log_display_df)
+    st.dataframe(log_display_df)
 
 # =========================
 # アクションボタン
@@ -229,5 +228,5 @@ with col1:
         st.switch_page("main.py")
 
 with col2:
-    if st.button("📝 記録する", use_container_width=True, type="primary"):
+    if st.button("📝 今の気分を記録する", use_container_width=True, type="primary"):
         st.switch_page("pages/1_select.py") 
