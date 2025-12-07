@@ -94,7 +94,7 @@ st.markdown("<div style='margin:40px 0;'></div>", unsafe_allow_html=True)
 # 右側: 今週の累計ポイント
 # ---------------------
 with col2:
-    st.markdown("### 📊 今週の累計ポイント")
+    st.markdown("### 🪙 今週の累計ポイント")
     
     # 進捗バー
     st.progress(min(week_points / 101, 1.0))

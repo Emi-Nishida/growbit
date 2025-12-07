@@ -6,6 +6,7 @@ from utils.services import (
     get_or_create_user_id,
     register_mood,
     get_current_season,
+    generate_meal_suggestion_link,
 )
 from utils.ui import setup_page
 from utils.constants import AFTER_MOOD_CONFIG
@@ -224,6 +225,45 @@ with col2:
             </p>
         </div>
     """, unsafe_allow_html=True)
+
+
+# app/pages/2_suggest.py の with col2: ブロック内の、
+# 猫のミニ儀式（薄い青）の st.markdown(f"""...""") の直後に追記
+
+# =========================
+# リアル連携ボタン (B案: リンク遷移)
+# =========================
+
+# AIが生成したメニュー名を取得。
+meal_name = human.get('menu', '気分転換 軽食')
+
+st.markdown("### 🛒 今すぐ行動する？")
+
+# 2つのボタンを横並びに配置
+col_link1, col_link2 = st.columns(2)
+
+with col_link1:
+    # Amazonリンク (材料購入) - typeをsecondaryで灰色に統一
+    amazon_url = generate_meal_suggestion_link(meal_name, "amazon")
+    st.link_button(
+        label=f"📦 {meal_name} の材料をAmazonで探す", 
+        url=amazon_url, 
+        use_container_width=True,
+        type="secondary" 
+    )
+
+with col_link2:
+    # Uber Eatsリンク (完成品注文) - 汎用キーワード、typeをsecondaryで灰色に統一
+    ubereats_keyword = "軽食 おやつ デリバリー" 
+
+    ubereats_url = generate_meal_suggestion_link(ubereats_keyword, "uber_eats")
+    
+    st.link_button(
+        label=f"🛵 {ubereats_keyword} をUber Eatsで注文", 
+        url=ubereats_url, 
+        use_container_width=True, # 👈 ここにコンマを追加しました
+        type="secondary"
+    )
 
 # =========================
 # 下半分: 気分の変化を登録

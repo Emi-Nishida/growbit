@@ -548,3 +548,35 @@ def deduct_weekly_balance(supabase, user_id: str, points: int) -> bool:
     except Exception as e:
         st.error(f"❌ 残高更新エラー: {e}")
         return False
+
+# app/utils/services.py (追記・新規追加)
+
+import urllib.parse
+
+def generate_meal_suggestion_link(keyword: str, service: str) -> str:
+    """
+    提案された軽食キーワードに基づいて、外部サービスの検索URLを生成する。
+    
+    :param keyword: 検索に使用するキーワード（例: "レンジでホットヨーグルト"）
+    :param service: 遷移先サービス ('amazon' または 'uber_eats')
+    :return: 検索URL
+    """
+    
+    # キーワードのURLエンコード処理
+    # キーワードが None の場合や空文字の場合に備えてフォールバックを設定
+    safe_keyword = keyword if keyword else "軽食"
+    encoded_keyword = urllib.parse.quote_plus(safe_keyword)
+    
+    if service == "amazon":
+        # Amazon検索のURL（主に材料購入を想定）
+        # 注: アフィリエイトタグなどは除外
+        return f"https://www.amazon.co.jp/s?k={encoded_keyword}"
+    
+    elif service == "uber_eats":
+        # Uber EatsのWeb検索URL（完成品の注文を想定）
+        # ユーザーの現在地は不明だが、Webページに誘導することで現在地に基づく店舗検索を促す
+        return f"https://www.ubereats.com/search?q={encoded_keyword}"
+        
+    else:
+        # 想定外のサービスの場合はGoogle検索にフォールバック
+        return f"https://www.google.com/search?q={encoded_keyword}"
