@@ -80,10 +80,72 @@ st.markdown("### 日々の​気分や​体調に​寄り​添って​小さ
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
 # =========================
+# アプリの使い方（アコーディオン）
+# =========================
+
+with st.expander("📖 このアプリの使い方を見る", expanded=False):
+    st.markdown("""
+### 🐱 前向きスイッチとは？
+気分を**オノマトペ**で登録すると、猫様（AI）があなたに合った**具体的で実践しやすいアドバイス**をくれます。
+このアプリは、あなたの**気分ケアを楽しく継続**させるための工夫が詰まっています！
+
+* **🐱 猫様という相棒**: いつもそばで一緒に頑張ってくれる存在がいるから、安心して挑戦できます。
+* **💰 気分の可視化と報酬**: 気分が改善すると**ポイント**が貯まり、自分の変化を実感できます。
+* **🎉 継続のモチベーション**: 貯めたポイントで猫様に**ご褒美（餌やり）**をあげられる仕組みが、継続を楽しくサポートします。
+
+---
+### 📝 使い方
+
+1. **気分を登録**: 今の気分をオノマトペで記録
+2. **猫様が登場**: 気分に対応した猫様が現れる
+3. **アドバイスを見る**: 猫様からの提案を受け取る
+4. **気分の変化を記録**: 提案後の気分を登録
+5. **ポイント獲得**: 気分が良くなるほど多くのポイント
+6. **週に餌やり**: 貯めたポイントで翌週に餌をあげる
+
+---
+### 🍚🍥 餌の種類
+
+* 🍚 **カリカリ**（10pt）
+* 🍥 **ちゅ〜る**（30pt）
+* 🐟 **サーモン**（60pt）
+* 🍣 **高級マグロ**（100pt）
+
+---
+### 😾😸 猫様の表情
+
+* 😾 **カリカリ**: ちょっと不機嫌
+* 😸 **ちゅ〜る**: 普通に嬉しい
+* 😹😹 **サーモン**: とっても嬉しい
+* 😻😻😻 **高級マグロ**: 最高に幸せ
+
+---
+### 🪙 ポイントの稼ぎ方
+
+* **気分が良くなった**: +10~20ポイント
+* **変わらない**: +5ポイント（挑戦が大事）
+
+毎日登録すると、どんどんポイントが貯まります 🎉
+
+---
+### 📊 振り返り機能とは？
+
+**あなたが記録した気分をまとめて振り返ることができる機能です。**
+過去31日間の気分を一覧で確認し、今週と先週の記録回数やポイントの変化も見える化されます。
+
+* **🐱 猫様からのフィードバック**: AIがあなたの気分データを分析し、猫様らしいやさしいアドバイスを届けてくれます。日々の変化を振り返りながら、次の一歩を楽しく進められます。
+* **📂 ログの確認**: 過去の状況やオノマトペを一覧で見返せるので、自分の気分の傾向をつかむことができます。
+
+振り返りを通じて、あなたの気分の変化をより深く理解できます！✨
+    """)
+st.markdown("---")
+
+# =========================
 # メインセクション: 気分を記録しよう(2カラム・枠+CTA)
 # =========================
 
-#st.markdown("### 💭 気分を記録しよう")
+st.markdown("### ✅記録と振り返り:")
+st.caption("毎日登録するとどんどんポイントが貯まり、猫様にナイスな餌をあげられます！")
 st.markdown("<div style='height:25px'></div>", unsafe_allow_html=True)
 
 col_left, col_right = st.columns([1, 1])
@@ -107,14 +169,14 @@ with col_left:
         justify-content: center;
     ">
         <div style="font-size:42px; margin-bottom:8px;">📝</div>
-        <h3 style="margin:5px 0; color:#667eea; font-size:18px;">今の気分を記録する</h3>
-        <p style="color:#666; margin:5px 0; font-size:13px; line-height:1.4;">
+        <h3 style="margin:5px 0; color:#667eea; font-size:22px;">今の気分を記録する</h3>
+        <p style="color:#666; margin:5px 0; font-size:14px; line-height:1.4;">
             猫様があなたに合った<br>アドバイスをくれます
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("📝 今の気分を記録する", key="mood_button_main", type="primary", use_container_width=True):
+    if st.button("📝 さっそく記録する", key="mood_button_main", type="primary", use_container_width=True):
         st.switch_page("pages/1_select.py")
 
 # ---------------------
@@ -136,14 +198,14 @@ with col_right:
         justify-content: center;
     ">
         <div style="font-size:42px; margin-bottom:8px;">📊</div>
-        <h3 style="margin:5px 0; color:#5d3f8c; font-size:18px;">過去の記録を見る</h3>
-        <p style="color:#666; margin:5px 0; font-size:13px; line-height:1.4;">
+        <h3 style="margin:5px 0; color:#5d3f8c; font-size:22px;">直近31日を振り返る</h3>
+        <p style="color:#666; margin:5px 0; font-size:14px; line-height:1.4;">
             気分の変化を<br>振り返ろう
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("📊 過去の記録を見る", key="feedback_button_main", use_container_width=True):
+    if st.button("📊 さっそく振り返る", key="feedback_button_main", use_container_width=True):
         st.switch_page("pages/4_feedback.py")
 
 # =========================
@@ -152,7 +214,6 @@ with col_right:
 
 st.markdown("---")
 st.markdown("### 🎁 ご褒美:猫様の餌やり")
-st.caption("気分改善を続けるとポイントが貯まり、猫様に餌をあげられます")
 
 col_left, col_right = st.columns([1, 1])
 
@@ -160,9 +221,10 @@ col_left, col_right = st.columns([1, 1])
 # 左側: 今週のポイント
 # ---------------------
 with col_left:
-    st.markdown("#### 🪙 今週のポイント")
+    st.markdown("#### 🪙 今週の獲得ポイント")
     
     # ポイント表示
+    st.caption("ポイントを貯めて猫様を笑顔にしよう！")
     st.progress(min(week_points / 101, 1.0))
     st.metric(label="累計ポイント", value=f"{week_points}pt")
     
@@ -184,16 +246,15 @@ with col_left:
     # 餌の種類プレビュー（小さく表示）
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
     st.markdown("**🍽️ 餌の種類**")
-    st.caption("ポイントを貯めて猫様に豪華な餌を！")
     
     # 2x2グリッドで4種の餌を表示
     food_col1, food_col2 = st.columns(2)
     
     food_items = [
-        ("カリカリ", 0, "🍚"),
-        ("ちゅ〜る", 31, "🍥"),
-        ("サーモン", 71, "🐟"),
-        ("高級マグロ", 101, "🍣"),
+        ("カリカリ", 10, "🍚"),
+        ("ちゅ〜る", 30, "🍥"),
+        ("サーモン", 60, "🐟"),
+        ("高級マグロ", 100, "🍣"),
     ]
     
     for idx, (food_name, threshold, emoji) in enumerate(food_items):
@@ -230,52 +291,44 @@ with col_left:
             )
 
 # ---------------------
-# 右側: 週次餌やりイベント (【修正版】ユーザー選択式)
+# 右側: 週次餌やりイベント (【完全版】履歴統合済み)
 # ---------------------
 with col_right:
-    st.markdown("#### 🍽️ 週次餌やりイベント")
-    st.caption(f"先週({last_week_range})貯めたポイントで、特別な餌をあげよう!")
+    st.markdown("#### 🍽️ 餌やりイベント開催中！")
+    st.caption(f"先週({last_week_range})貯めたポイントで、猫様にさっそく餌をあげよう！")
 
-    # 買える餌のリストが空かどうかをチェック
+# ★ 追加するスペーサー（左側のプログレスバーと高さを揃えるため）
+    # Streamlitのst.progressの高さに合わせて、2行程度のスペースを確保
+    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+
     if weekly_balance == 0:
-        # 残高がない
         st.info("💡 餌やり可能なポイントがありません")
-        st.caption("今週気分を登録してポイントを貯めましょう!")
-    
+        st.caption("今週気分を登録してポイントを貯めましょう！")
+
     elif not affordable_feeds:
-        # ポイントはあるが、買える餌がない（feed_pointが0pt超の餌が買えない場合）
         st.info(f"💡 残高: {weekly_balance}pt。交換可能な餌がありません。")
         st.caption("もう少しポイントを貯めて、より豪華な餌にチャレンジしましょう！")
 
     else:
-        # 残高表示
-        st.metric(
-            label="餌やり可能残高", 
-            value=f"{weekly_balance}pt"
-        )
-        
-        # 買える餌の選択肢リストを作成 (例: "ちゅ〜る (300pt)")
+        st.metric(label="餌やり可能残高", value=f"{weekly_balance}pt")
+
         food_options = [
-            f"{f['feed_name']} ({f['feed_point']}pt)" 
+            f"{f['feed_name']} ({f['feed_point']}pt)"
             for f in affordable_feeds
         ]
-        
-        # ユーザーに選択させるUI
+
         selected_option = st.selectbox(
             "🎁 あげる餌を選んでください",
             food_options,
             key="feed_select"
         )
-        
-        # 選択された名前から、元のデータ(辞書)を特定する
+
         selected_feed_name = selected_option.split(" (")[0]
-        # next() を使ってリスト内から該当する餌データを取得
         selected_feed = next(f for f in affordable_feeds if f['feed_name'] == selected_feed_name)
-        
+
         selected_feed_emoji = FOOD_EMOJIS.get(selected_feed_name, "🐱")
         selected_feed_cost = selected_feed['feed_point']
-        
-        # 選択中の餌の情報をUIで表示
+
         st.markdown(f"""
         <div style="
             text-align: center;
@@ -292,31 +345,24 @@ with col_right:
             </p>
         </div>
         """, unsafe_allow_html=True)
-        
-        # 餌やりボタン
+
         if st.button(
-            f"🍽️ {selected_feed_name}をあげる（{selected_feed_cost}pt消費）", 
-            key="weekly_feed_button", 
-            type="primary", 
+            f"🍽️ {selected_feed_name}をあげる（{selected_feed_cost}pt消費）",
+            key="weekly_feed_button",
+            type="primary",
             use_container_width=True
         ):
-            # 餌IDと消費ポイントを取得
             feed_id = selected_feed['id']
-            feed_point = selected_feed['feed_point']
-            
-            # 残高チェック＆減算
-            if deduct_weekly_balance(supabase, user_id, feed_point):
-                # 餌やり実行
+
+            if deduct_weekly_balance(supabase, user_id, selected_feed_cost):
                 success = execute_weekly_feeding_event(supabase, user_id, feed_id)
-                
+
                 if success:
-                    # 成功メッセージとリロード
-                    new_balance = weekly_balance - feed_point
-                    
-                    st.success(f"🎉 {selected_feed_name}をあげました!")
+                    new_balance = weekly_balance - selected_feed_cost
+
+                    st.success(f"🎉 {selected_feed_name}をあげました！")
                     st.balloons()
-                    
-                    # アニメーション表示
+
                     selected_cat_expression = CAT_EXPRESSIONS.get(selected_feed_name, "🐱")
                     st.markdown(f"""
                     <div style="
@@ -337,173 +383,69 @@ with col_right:
                         </p>
                     </div>
                     """, unsafe_allow_html=True)
-                    
-                    # 2秒待ってからリロード
+
                     time.sleep(2)
                     st.rerun()
-
                 else:
                     st.error("餌やりログの登録に失敗しました。")
             else:
                 st.error("残高が足りません。選択した餌のポイントを確認してください。")
-# ---
-# 最近の餌やり履歴(週次イベント内)
-# ---
 
-# ★ 以下のブロックは、週次イベントの `else:` のスコープの外に配置してください。
-# これが `with col_right:` の最後のコンテンツになります。
+        # 🗓️ 最近の餌やり履歴（右側ボックス内に表示）
+        with st.expander("📅 最近の餌やり履歴", expanded=False):
+            history = get_feeding_history(supabase, user_id, limit=3)
 
-with st.expander("📅 最近の餌やり履歴", expanded=False):
-    # get_feeding_historyの修正（limit=3を追加）が必要です。
-    history = get_feeding_history(supabase, user_id, limit=3)
+            if not history:
+                st.info("まだ餌やり履歴がありません")
+            else:
+                for record in history:
+                    feed_at = datetime.fromisoformat(record["feed_at"].replace("Z", "+00:00"))
+                    feed_name = record.get("feed_master", {}).get("feed_name", "不明")
+                    feed_point = record.get("feed_master", {}).get("feed_point", 0)
+                    feed_emoji = FOOD_EMOJIS.get(feed_name, "🐱")
+                    date_str = feed_at.strftime("%m/%d(%a)")
+
+                    st.markdown(f"""
+                    <div style="
+                        padding: 12px;
+                        margin: 8px 0;
+                        background: #f9f9f9;
+                        border-left: 4px solid #667eea;
+                        border-radius: 5px;
+                    ">
+                        <span style="font-size: 14px;">✅ {date_str}</span>
+                        <span style="font-size: 20px; margin: 0 8px;">{feed_emoji}</span>
+                        <strong>{feed_name}</strong>
+                        <span style="color: #999; margin-left: 8px; font-size: 13px;">({feed_point}pt)</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+
+# # =========================
+# # デバッグ情報(本番前に削除)
+# # =========================
+# with st.expander("🔍 デバッグ情報（開発用）"):
+#     st.write("user_id:", user_id)
+#     st.write("week_points (今週):", week_points)
+#     st.write("weekly_balance (残高):", weekly_balance)
+#     st.write("今日:", today)
+#     st.write("今週の開始:", this_week_start)
+#     st.write("先週の開始:", last_week_start)
+#     st.write("先週の終了:", last_week_end)
+
+#     st.write("🔍 餌の情報")
+#     st.write("全餌マスタ (all_feeds):", all_feeds)
+#     st.write("残高内で購入可能な餌 (affordable_feeds):", affordable_feeds)
     
-    if not history:
-        st.info("まだ餌やり履歴がありません")
-    else:
-        for record in history:
-            # 日付処理には datetime が必要です
-            feed_at = datetime.fromisoformat(record["feed_at"].replace("Z", "+00:00"))
-            feed_name = record.get("feed_master", {}).get("feed_name", "不明")
-            feed_point = record.get("feed_master", {}).get("feed_point", 0)
-            feed_emoji = FOOD_EMOJIS.get(feed_name, "🐱")
-            
-            # 日付フォーマット
-            date_str = feed_at.strftime("%m/%d(%a)")
-            
-            st.markdown(f"""
-            <div style="
-                padding: 12px;
-                margin: 8px 0;
-                background: #f9f9f9;
-                border-left: 4px solid #667eea;
-                border-radius: 5px;
-            ">
-                <span style="font-size: 14px;">✅ {date_str}</span>
-                <span style="font-size: 20px; margin: 0 8px;">{feed_emoji}</span>
-                <strong>{feed_name}</strong>
-                <span style="color: #999; margin-left: 8px; font-size: 13px;">({feed_point}pt)</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-# =========================
-# 最近の餌やり履歴(週次イベント内)
-# =========================
-
-with col_right:
-    with st.expander("📅 最近の餌やり履歴", expanded=False):
-        history = get_feeding_history(supabase, user_id, limit=3)
-        
-        if not history:
-            st.info("まだ餌やり履歴がありません")
-        else:
-            for record in history:
-                feed_at = datetime.fromisoformat(record["feed_at"].replace("Z", "+00:00"))
-                feed_name = record.get("feed_master", {}).get("feed_name", "不明")
-                feed_point = record.get("feed_master", {}).get("feed_point", 0)
-                feed_emoji = FOOD_EMOJIS.get(feed_name, "🐱")
-                
-                # 日付フォーマット
-                date_str = feed_at.strftime("%m/%d(%a)")
-                
-                st.markdown(f"""
-                <div style="
-                    padding: 12px;
-                    margin: 8px 0;
-                    background: #f9f9f9;
-                    border-left: 4px solid #667eea;
-                    border-radius: 5px;
-                ">
-                    <span style="font-size: 14px;">✅ {date_str}</span>
-                    <span style="font-size: 20px; margin: 0 8px;">{feed_emoji}</span>
-                    <strong>{feed_name}</strong>
-                    <span style="color: #999; margin-left: 8px; font-size: 13px;">({feed_point}pt)</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-# =========================
-# アプリの使い方（アコーディオン）
-# =========================
-
-st.markdown("---")
-
-with st.expander("📖 このアプリの使い方を見る", expanded=False):
-    st.markdown("""
-    ### 🐱 前向きスイッチとは？
-    **あなたの気分をケアするアプリです。**  
-    気分をオノマトペで登録すると、猫様があなたに合ったアドバイスをくれます。
-    気分が良くなるとポイントが貯まり、ご褒美に猫様に餌をあげられます！
-
-    ### 📝 使い方
-    1. **気分を登録**: 今の気分をオノマトペで記録
-    2. **猫様が登場**: 気分に対応した猫様が現れる
-    3. **アドバイスを見る**: 猫様からの提案を受け取る
-    4. **気分の変化を記録**: 提案後の気分を登録
-    5. **ポイント獲得**: 気分が良くなるほど多くのポイント
-    6. **週に餌やり**: 貯めたポイントで翌週に餌をあげる
-
-    ### 🍚🍥 餌の種類
-    - 🍚 カリカリ（0pt～）
-    - 🍥 ちゅ〜る（31pt～）
-    - 🐟 サーモン（71pt～）
-    - 🍣 高級マグロ（101pt～）
-
-    ### 😾😸 猫様の表情
-    - 😾 カリカリ: ちょっと不機嫌
-    - 😸 ちゅ〜る: 普通に嬉しい
-    - 😹😹 サーモン: とっても嬉しい
-    - 😻😻😻 高級マグロ: 最高に幸せ
-
-    ### 🪙 ポイントの稼ぎ方
-    - **気分が良くなった**: +10~20ポイント
-    - **変わらない**: +5ポイント（挑戦が大事）
-
-    毎日登録すると、どんどんポイントが貯まります 🎉
-                
-    ### 📊 振り返り機能とは？
-    **あなたが記録した気分をまとめて振り返ることができる機能です。**  
-    過去31日間の気分を一覧で確認し、今週と先週の記録回数やポイントの変化も見える化されます。  
-
-    - **🐱 猫様からのフィードバック**:  
-    AIがあなたの気分データを分析し、猫様らしいやさしいアドバイスを届けてくれます。日々の変化を振り返りながら、次の一歩を楽しく進められるニャ！  
-
-    - **📂 ログの確認**:  
-    過去の状況やオノマトペを一覧で見返せるので、自分の気分の傾向をつかむことができます。  
-
-    ✨ 振り返りを通じて、あなたの気分の変化をより深く理解できるのですニャ！  
-
+#     # 以前の自動判定ロジックは削除し、新しい変数を確認する
     
-    ### 💡 このアプリの特徴
-    - **猫様という相棒**: 一緒に頑張る存在がいる安心感
-    - **すぐできる提案**: 具体的で実践しやすいアドバイス
-    - **気分の可視化**: ポイントで変化を実感できる
-    - **継続の楽しさ**: 猫様への餌やりがモチベーション
-    """)
-
-# =========================
-# デバッグ情報(本番前に削除)
-# =========================
-with st.expander("🔍 デバッグ情報（開発用）"):
-    st.write("user_id:", user_id)
-    st.write("week_points (今週):", week_points)
-    st.write("weekly_balance (残高):", weekly_balance)
-    st.write("今日:", today)
-    st.write("今週の開始:", this_week_start)
-    st.write("先週の開始:", last_week_start)
-    st.write("先週の終了:", last_week_end)
-
-    st.write("🔍 餌の情報")
-    st.write("全餌マスタ (all_feeds):", all_feeds)
-    st.write("残高内で購入可能な餌 (affordable_feeds):", affordable_feeds)
+#     # 今週のポイントから決定される予定の餌
+#     st.write("今週のポイントから決定される餌(current_food_type):", current_food_type)
     
-    # 以前の自動判定ロジックは削除し、新しい変数を確認する
-    
-    # 今週のポイントから決定される予定の餌
-    st.write("今週のポイントから決定される餌(current_food_type):", current_food_type)
-    
-    if weekly_balance > 0 and 'selected_feed' in locals() and selected_feed:
-        # 週次イベントが実行可能な状態かつ、選択肢の処理が通った後の情報を表示
-        st.write("ユーザー選択中の餌:", selected_feed)
-    elif weekly_balance > 0:
-         st.write("⚠️ ユーザーはまだ餌を選択していません")
-    else:
-         st.write("⚠️ 残高がありません (週次イベント実行不可)")
+#     if weekly_balance > 0 and 'selected_feed' in locals() and selected_feed:
+#         # 週次イベントが実行可能な状態かつ、選択肢の処理が通った後の情報を表示
+#         st.write("ユーザー選択中の餌:", selected_feed)
+#     elif weekly_balance > 0:
+#          st.write("⚠️ ユーザーはまだ餌を選択していません")
+#     else:
+#          st.write("⚠️ 残高がありません (週次イベント実行不可)")
