@@ -2,8 +2,9 @@
 import streamlit as st
 from datetime import datetime
 from utils.services import (
+    check_authentication,       # 追加
+    get_authenticated_user_id,  # 追加
     get_supabase_client,
-    get_or_create_user_id,
     get_all_onomatopoeia,
     get_cat_by_onomatopoeia_id,
     get_all_situations,
@@ -20,9 +21,12 @@ setup_page(
     add_title_spacer=True,
 )
 
+# 🔐 認証チェック（最優先）
+check_authentication()
+
 # Supabase接続
 supabase = get_supabase_client()
-user_id = get_or_create_user_id()
+user_id = get_authenticated_user_id()  # 変更
 
 # =========================
 # 時間帯に応じたデフォルトシーン取得

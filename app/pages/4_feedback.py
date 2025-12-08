@@ -1,8 +1,9 @@
 # app/pages/4_feedback.py
 import streamlit as st
 from utils.services import (
+    check_authentication,       # 追加
+    get_authenticated_user_id,  # 追加
     get_supabase_client,
-    get_or_create_user_id,
     get_month_summary,
 )
 from utils.ui import setup_page
@@ -20,17 +21,20 @@ setup_page(
     home_href="/",
     add_title_spacer=True,
 )
+# 🔐 認証チェック（最優先）
+check_authentication()
 
 # Supabase接続
 supabase = get_supabase_client()
+user_id = get_authenticated_user_id()  # 変更
 
 # 今日の日付
 today = date.today()
 monday_this_week = today - timedelta(days=today.weekday())  # 月曜始まり
 monday_last_week = monday_this_week - timedelta(weeks=1)
 
-# 対象ユーザーのUUID★★★後で変更 #7ff121b7-ea36-4e9a-b642-1cc0b189b156もしくはget_or_create_user_id()
-target_user_id = get_or_create_user_id()
+# 対象ユーザーのUUID（認証済みユーザー）
+target_user_id = user_id  # 🆕 変更: 既に取得済みのuser_idを使用
 
 # ===================================
 # ログをまとめて取得（Supabaseクエリを1回に統合）★変更点
@@ -129,7 +133,10 @@ def run_gpt_cached(logs_text):
     **Markdownの構造ルール：**
     - 最初に大きなタイトルは不要です（`#`や`##`は使わない）
     - 最初に一文で総括を述べてください
-    - 各セクションのタイトルは `####` を使ってください（例：`#### 身体状態の傾向`）
+    - 各セクションのタイトルは `####` を必ず以下の絵文字付きタイトルを使ってください：
+        - `#### 🏃‍♀️ 身体状態の傾向`
+        - `#### 💖 感情傾向の分析`
+        - `#### 🌈 改善のためのアドバイス`
     - 本文はやさしく明るくですます調でお願いします。最初の総括と最後のフィードバックだけ猫っぽい語尾（「ニャ」など）を使ってください
     - 箇条書きは `-` または `1.` を使ってください
     - 出力はMarkdown形式で整えてください
