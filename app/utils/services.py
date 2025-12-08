@@ -46,6 +46,45 @@ def get_supabase_client():
         st.stop()
 
 # =========================
+# 🔐 認証機能（新規追加）
+# =========================
+
+def check_authentication():
+    """
+    認証状態をチェック。未ログインならログインページへリダイレクト
+    各ページの冒頭で呼び出す
+    """
+    if "auth_user_id" not in st.session_state or st.session_state.auth_user_id is None:
+        st.warning("⚠️ ログインが必要です")
+        st.switch_page("pages/0_login.py")
+        st.stop()
+
+def get_authenticated_user_id() -> str:
+    """
+    認証済みユーザーIDを取得
+    未認証の場合はログインページへリダイレクト
+    """
+    check_authentication()
+    return st.session_state.auth_user_id
+
+def is_logged_in() -> bool:
+    """ログイン状態を確認"""
+    return "auth_user_id" in st.session_state and st.session_state.auth_user_id is not None
+
+def logout():
+    """ログアウト処理"""
+    supabase = get_supabase_client()
+    try:
+        supabase.auth.sign_out()
+        st.session_state.auth_user_id = None
+        st.session_state.user_email = None
+        st.success("✅ ログアウトしました")
+        st.switch_page("pages/0_login.py")
+    except Exception as e:
+        st.error(f"❌ ログアウトに失敗しました: {e}")
+
+
+# =========================
 # セッション管理
 # =========================
 
