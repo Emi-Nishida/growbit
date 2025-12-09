@@ -1,13 +1,13 @@
-# app/main.py (ログイン対応版)
+# app/main.py
 import streamlit as st
 import unicodedata
 import time
 
 from utils.services import (
     get_supabase_client,
-    check_authentication,  # 🆕 追加
-    get_authenticated_user_id,  # 🆕 追加
-    logout,  # 🆕 追加
+    check_authentication,  # 追加
+    get_authenticated_user_id,  # 追加
+    logout,  # 追加
     get_current_week_points,
     get_weekly_balance,
     get_food_type_by_points,
