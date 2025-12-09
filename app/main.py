@@ -211,7 +211,7 @@ with col_right:
         justify-content: center;
     ">
         <div style="font-size:42px; margin-bottom:8px;">📊</div>
-        <h3 style="margin:5px 0; color:#5d3f8c; font-size:22px;">過去31日を振り返る</h3>
+        <h3 style="margin:5px 0; color:#5d3f8c; font-size:22px;">過去を振り返る</h3>
         <p style="color:#666; margin:5px 0; font-size:14px; line-height:1.4;">
             気分の変化を<br>振り返ろう
         </p>
