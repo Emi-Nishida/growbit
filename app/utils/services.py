@@ -55,7 +55,6 @@ def check_authentication():
     各ページの冒頭で呼び出す
     """
     if "auth_user_id" not in st.session_state or st.session_state.auth_user_id is None:
-        st.warning("⚠️ ログインが必要です")
         st.switch_page("pages/0_login.py")
         st.stop()
 

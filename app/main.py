@@ -38,14 +38,18 @@ supabase = get_supabase_client()
 user_id = get_authenticated_user_id()  # 🆕 認証済みユーザーIDを取得
 
 # =========================
-# 🆕 ヘッダー：ログアウトボタン
+# 🆕 ヘッダー：ログアウトボタン（右上配置）
 # =========================
-col_title, col_logout = st.columns([4, 1])
-with col_title:
+# タイトルとログアウトボタンを横並びに
+col1, col2 = st.columns([6, 1])
+
+with col1:
     st.title("😸 あなたの気分を、猫様と一緒に前向きに!")
-with col_logout:
-    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-    if st.button("🚪 ログアウト", key="logout_btn"):
+
+with col2:
+    # 空白で高さを調整
+    st.write("")
+    if st.button("logout", key="logout_btn", help="ログアウト"):
         logout()
 
 # =========================
