@@ -15,7 +15,7 @@ import pandas as pd
 
 # ページ設定
 setup_page(
-    page_title="📊 31日間の振り返り",
+    page_title="📊 過去の振り返り",
     page_icon="😺",
     show_home=True,
     home_href="/",
@@ -39,7 +39,7 @@ target_user_id = user_id  # 🆕 変更: 既に取得済みのuser_idを使用
 # ===================================
 # ログをまとめて取得（Supabaseクエリを1回に統合）★変更点
 # ===================================
-start_date_31days = (date.today() - timedelta(days=31)).isoformat()
+start_date_31days = (date.today() - timedelta(days=28)).isoformat()
 logs_response = (
     supabase.table("mood_register_log")
     .select("id, created_at, situation_master(situation), onomatopoeia_master(onomatopoeia), cat_master(cat_name), points_earned")
@@ -49,7 +49,7 @@ logs_response = (
 )
 df_logs = pd.DataFrame(logs_response.data)
 
-# 今週・先週・31日間の件数を pandas 側で計算
+# 今週・先週・28日間の件数を pandas 側で計算
 # 日時のパース：Timestamp型として保持
 df_logs["created_at"] = pd.to_datetime(df_logs["created_at"], format='ISO8601', utc=True)
 df_logs["created_at_jst"] = df_logs["created_at"].dt.tz_convert('Asia/Tokyo')
@@ -127,14 +127,14 @@ client = OpenAI()
 @st.cache_data(ttl=3600) # キャッシュの有効期限を1時間に設定
 def run_gpt_cached(logs_text):
     request_to_gpt = f"""
-    あなたはユーザーの感情データを分析する優秀なアシスタントです。以下は、あるユーザーが過去31日間に記録した感情データです。
+    あなたはユーザーの感情データを分析する優秀なアシスタントです。以下は、あるユーザーが過去28日間に記録した感情データです。
     各行には、記録日時、状況の説明、感情を表すオノマトペが含まれています。
-    これらのデータをもとに、ユーザーの身体状態、感情傾向を分析し、今の状況を改善して日々のパフォーマンスを向上させる具体的で役立つ食事以外のフィードバックを猫風にMarkdown形式で提供してください。
+    これらのデータをもとに、ユーザーの身体状態、感情傾向を分析し、今の状況を改善して日々のパフォーマンスを向上させる具体的で役立つ食事以外の詳細なフィードバックを猫風にMarkdown形式で提供してください。
     **Markdownの構造ルール：**
     - 最初に大きなタイトルは不要です（`#`や`##`は使わない）
     - 最初に一文で総括を述べてください
     - 各セクションのタイトルは `####` を必ず以下の絵文字付きタイトルを使ってください：
-        - `#### 🏃‍♀️ 身体状態の傾向`
+        - `#### 🏃‍♀️ 身体状態の分析`
         - `#### 💖 感情傾向の分析`
         - `#### 🌈 改善のためのアドバイス`
     - 本文はやさしく明るくですます調でお願いします。最初の総括と最後のフィードバックだけ猫っぽい語尾（「ニャ」など）を使ってください
@@ -203,13 +203,13 @@ with col3:
 
 st.markdown("---")
 
-st.markdown("### 🐱 猫様からのフィードバック")
+st.markdown("### 🐱 猫様のフィードバック：過去4週間をふりかえって")
 if last_31days_log_count == 0:
-    st.warning("記録が31日間ありません。まずは気分を記録してほしいニャ！")
+    st.warning("記録がありません。まずは気分を記録してほしいニャ！")
 else:
     st.info(output_content_text)
 
-with st.expander("📂 直近31日のログを表示"):
+with st.expander("📂 直近4週間のログを表示"):
     st.dataframe(log_display_df)
 
 # =========================
@@ -221,9 +221,9 @@ st.markdown("---")
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("🏠 ホームへ戻る", use_container_width=True, type="secondary"):
+    if st.button("🏠 ホームへ戻る", use_container_width=True, type="primary"):
         st.switch_page("main.py")
 
 with col2:
-    if st.button("📝 今の気分を記録する", use_container_width=True, type="primary"):
+    if st.button("📝 今の気分を記録する", use_container_width=True, type="secondary"):
         st.switch_page("pages/1_select.py") 
