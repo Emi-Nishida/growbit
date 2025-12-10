@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any, List
 import streamlit as st
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from supabase import create_client, Client 
 
 # .env 読み込み
 load_dotenv(dotenv_path=".env")
@@ -34,16 +35,21 @@ SUPABASE_URL, SUPABASE_KEY = _get_supabase_creds()
 # =========================
 
 def get_supabase_client():
-    """Supabaseクライアントを取得"""
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        st.error("⚠️ .env または Secrets に SUPABASE_URL / SUPABASE_KEY が設定されていません。")
-        st.stop()
-    try:
-        from supabase import create_client
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
-        st.error(f"❌ Supabase接続に失敗しました: {e}")
-        st.stop()
+    """Supabaseクライアントを取得（認証セッション付き）"""
+    load_dotenv()
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    
+    supabase = create_client(supabase_url, supabase_key)
+    
+    # 🆕 セッションステートから認証情報を取得して設定
+    if "access_token" in st.session_state and "refresh_token" in st.session_state:
+        supabase.auth.set_session(
+            st.session_state["access_token"],
+            st.session_state["refresh_token"]
+        )
+    
+    return supabase
 
 # =========================
 # 🔐 認証機能（新規追加）
@@ -77,6 +83,9 @@ def logout():
         supabase.auth.sign_out()
         st.session_state.auth_user_id = None
         st.session_state.user_email = None
+        # 🆕 トークンもクリア
+        st.session_state.access_token = None
+        st.session_state.refresh_token = None
         st.success("✅ ログアウトしました")
         st.switch_page("pages/0_login.py")
     except Exception as e:
