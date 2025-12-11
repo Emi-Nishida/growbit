@@ -36,16 +36,18 @@ def sign_in(email, password):
     try:
         response = supabase.auth.sign_in_with_password({"email": email, "password": password})
         if response and response.user:
-            # セッションに保存
+            # セッションに保存（トークンも追加）
             st.session_state["user_email"] = response.user.email
             st.session_state["auth_user_id"] = response.user.id
+            st.session_state["access_token"] = response.session.access_token  # 🆕
+            st.session_state["refresh_token"] = response.session.refresh_token  # 🆕
             st.success(f"✅ ようこそ、{email}!")
-            # ログイン成功後にmainへ遷移
             st.switch_page("main.py")
         return response
     except Exception as e:
         st.error(f"❌ ログイン失敗: {e}")
         return None
+
 
 def auth_screen():
     """ログイン画面"""
