@@ -1,5 +1,6 @@
 # app/pages/3_complete.py
 import streamlit as st
+from PIL import Image
 from utils.services import (
     check_authentication,       # 追加
     get_authenticated_user_id,  # 追加
@@ -10,10 +11,13 @@ from utils.services import (
 from utils.ui import setup_page
 from utils.constants import FOOD_EMOJIS, FOOD_THRESHOLDS, CAT_EXPRESSIONS
 
+#画像挿入
+icon_image = Image.open("cat_icon.png")
+
 # ページ設定
 setup_page(
-    page_title="😽🎉 おめでとう！",
-    page_icon="😺",
+    page_title="おめでとう！",
+    page_icon=icon_image,
     show_home=True,
     home_href="/",
     add_title_spacer=True,

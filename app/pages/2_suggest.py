@@ -1,6 +1,7 @@
 # app/pages/2_suggest.py
 import streamlit as st
 import time
+from PIL import Image
 from utils.services import (
     check_authentication,       # 追加
     get_authenticated_user_id,  # 追加
@@ -15,10 +16,13 @@ from utils.rhythm_reset import get_rhythm_reset
 from utils.meal_suggest import generate_meal_suggestion, get_fallback_meal
 from utils.character_profiles import select_character
 
+#画像挿入
+icon_image = Image.open("cat_icon.png")
+
 # ページ設定
 setup_page(
-    page_title="🐾猫様からの提案",
-    page_icon="🐱",
+    page_title="猫様からの提案",
+    page_icon=icon_image,
     show_home=True,
     home_href="/",
     add_title_spacer=True,
