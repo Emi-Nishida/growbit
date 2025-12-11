@@ -1,5 +1,6 @@
 # app/pages/4_feedback.py
 import streamlit as st
+from PIL import Image
 from utils.services import (
     check_authentication,       # 追加
     get_authenticated_user_id,  # 追加
@@ -13,10 +14,13 @@ from supabase import create_client, Client
 from openai import OpenAI
 import pandas as pd
 
+#画像挿入
+icon_image = Image.open("cat_icon.png")
+
 # ページ設定
 setup_page(
-    page_title="📊 過去の振り返り",
-    page_icon="😺",
+    page_title="過去の振り返り",
+    page_icon=icon_image,
     show_home=True,
     home_href="/",
     add_title_spacer=True,

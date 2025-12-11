@@ -7,6 +7,7 @@ UI/UX、ポイント、絵文字、カテゴリ、ページ設定などを一元
 """
 
 from typing import Dict, Mapping
+from PIL import Image
 
 # =========================
 # 餌の種類と必要ポイント
@@ -89,9 +90,12 @@ CATEGORY_EMOJIS: Dict[str, str] = {
 # ページ設定
 # =========================
 
+#画像挿入
+icon_image = Image.open("cat_icon.png")
+
 PAGE_CONFIG: Dict[str, str] = {
-    "page_title": "🐱 前向きスイッチアプリ",
-    "page_icon": "🐱",
+    "page_title": "前向きスイッチアプリ",
+    "page_icon": icon_image,
     "layout": "wide",
     "initial_sidebar_state": "collapsed",
 }

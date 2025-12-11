@@ -1,12 +1,16 @@
 import streamlit as st
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from PIL import Image
 import os
+
+#画像挿入
+icon_image = Image.open("cat_icon.png")
 
 # ページ設定
 st.set_page_config(
-    page_title="ログイン - 猫様アプリ",
-    page_icon="😸",
+    page_title="ログイン - 前向きスイッチ",
+    page_icon=icon_image,
     layout="centered"
 )
 
@@ -51,7 +55,7 @@ def sign_in(email, password):
 
 def auth_screen():
     """ログイン画面"""
-    st.title("😸 猫様アプリへようこそ")
+    st.title("😸 前向きスイッチへようこそ")
     st.markdown("### 気分を記録して、猫様からアドバイスをもらおう!")
     st.markdown("---")
     
